@@ -25,7 +25,7 @@ export interface StockQuote {
   shortFloat?: number
   analystRating?: 'Strong Buy' | 'Buy' | 'Hold' | 'Sell' | 'Strong Sell'
   priceTarget?: number
-  history: { time: string; price: number; volume: number }[]
+  history: { timestamp: number; time: string; price: number; volume: number }[]
 }
 
 const MOCK_BASE: Omit<StockQuote, 'history'>[] = [
@@ -81,6 +81,7 @@ function generateHistory(basePrice: number, changePercent: number) {
     const noise = (Math.random() - 0.48) * 0.8
     price = Math.max(price + noise, price * 0.97)
     history.push({
+      timestamp: Math.floor(t.getTime() / 1000),
       time: t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
       price: parseFloat(price.toFixed(2)),
       volume: Math.floor(Math.random() * 500_000 + 100_000),

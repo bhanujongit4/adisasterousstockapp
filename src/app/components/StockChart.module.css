@@ -2,47 +2,189 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 0;
+  min-height: 0;
+  gap: 10px;
 }
 
-.mainChart {
+.fullscreenWrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: #020617;
+  padding: 14px;
+  gap: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.select {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.modeButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modeBtn {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.modeBtn:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+}
+
+.modeBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.active {
+  color: var(--text-primary);
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25) inset;
+}
+
+.fullscreenBtn {
+  border: 1px solid var(--border-bright);
+  background: rgba(15, 23, 42, 0.8);
+  color: #dbeafe;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.resumeBtn {
+  border: 1px solid rgba(20, 184, 166, 0.7);
+  background: rgba(20, 184, 166, 0.14);
+  color: #99f6e4;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.clearBtn {
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.25);
+  color: #fecaca;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.statusBar {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chartStack {
+  position: relative;
   flex: 1;
   min-height: 0;
 }
 
-.volumeChart {
-  height: 60px;
-  position: relative;
+.mainChart {
+  position: absolute;
+  inset: 0;
 }
 
-.volumeLabel {
+.noteLayer {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  inset: 0;
+  pointer-events: none;
+}
+
+.notePin {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  background: rgba(251, 191, 36, 0.22);
+  border: 1px solid rgba(251, 191, 36, 0.95);
+  border-radius: 999px;
+  color: #fde68a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-mono);
   font-size: 9px;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-  z-index: 1;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: default;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.35);
 }
 
-.tooltip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-bright);
-  padding: 8px 12px;
-  border-radius: 4px;
-}
-
-.tooltipTime {
+.noteTooltip {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  transform: translateY(-100%);
+  min-width: 180px;
+  max-width: 340px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.7);
+  background: rgba(30, 41, 59, 0.96);
+  color: #fde68a;
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-bottom: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.14s ease;
+  z-index: 8;
 }
 
-.tooltipPrice {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
+.notePin:hover .noteTooltip {
+  opacity: 1;
+  visibility: visible;
 }

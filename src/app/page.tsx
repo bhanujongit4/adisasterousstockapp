@@ -11,7 +11,17 @@ import MarketStats from './components/MarketStats'
 import styles from './Page.module.css'
 
 export default function Home() {
-  const { stocks, loading, lastUpdated, selectedSymbol, setSelectedSymbol, selectedStock, refresh } = useStockData()
+  const {
+    stocks,
+    loading,
+    lastUpdated,
+    selectedSymbol,
+    setSelectedSymbol,
+    selectedStock,
+    refresh,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled,
+  } = useStockData()
 
   const gainers = [...stocks].sort((a, b) => b.changePercent - a.changePercent).slice(0, 3)
   const losers  = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
@@ -77,7 +87,11 @@ export default function Home() {
                   <span className={styles.chartSub}>PREV CLOSE: ${selectedStock.prevClose.toFixed(2)}</span>
                 </div>
                 <div className={styles.chartBody}>
-                  <StockChart stock={selectedStock} />
+                  <StockChart
+                    stock={selectedStock}
+                    autoRefreshEnabled={autoRefreshEnabled}
+                    setAutoRefreshEnabled={setAutoRefreshEnabled}
+                  />
                 </div>
               </div>
             </>

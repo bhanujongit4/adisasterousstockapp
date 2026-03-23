@@ -8,6 +8,7 @@ export function useStockData() {
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [selectedSymbol, setSelectedSymbol] = useState<string>('AAPL')
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
 
   const refresh = useCallback(() => {
     // Simulate price drift on refresh
@@ -21,7 +22,9 @@ export function useStockData() {
         const newHistory = [
           ...s.history.slice(1),
           {
-            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            timestamp: (s.history[s.history.length - 1]?.timestamp ?? Math.floor(Date.now() / 1000)) + 300,
+            time: new Date(((s.history[s.history.length - 1]?.timestamp ?? Math.floor(Date.now() / 1000)) + 300) * 1000)
+              .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
             price: newPrice,
             volume: Math.floor(Math.random() * 500_000 + 100_000),
           },
@@ -41,11 +44,22 @@ export function useStockData() {
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
+    if (!autoRefreshEnabled) return
     const id = setInterval(refresh, 5000)
     return () => clearInterval(id)
-  }, [refresh])
+  }, [autoRefreshEnabled, refresh])
 
   const selectedStock = stocks.find(s => s.symbol === selectedSymbol) ?? stocks[0] ?? null
 
-  return { stocks, loading, lastUpdated, selectedSymbol, setSelectedSymbol, selectedStock, refresh }
+  return {
+    stocks,
+    loading,
+    lastUpdated,
+    selectedSymbol,
+    setSelectedSymbol,
+    selectedStock,
+    refresh,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled,
+  }
 }
