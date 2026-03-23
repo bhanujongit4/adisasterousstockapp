@@ -1,0 +1,109 @@
+.wrapper {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.topLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.symbol {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.06em;
+}
+
+.sector {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--blue);
+  border: 1px solid rgba(77,159,255,0.3);
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+}
+
+.name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.priceBlock {
+  text-align: right;
+}
+
+.price {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.change {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.rating {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.up   { color: var(--green); }
+.down { color: var(--red); }
+
+/* scrollable stats area */
+.statsScroll {
+  overflow-y: auto;
+  max-height: 180px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.stat {
+  padding: 8px 14px;
+  border-right: 1px solid var(--border);
+}
+
+.stat:last-child {
+  border-right: none;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 3px;
+}
+
+.statValue {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}

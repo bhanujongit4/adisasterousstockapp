@@ -1,0 +1,48 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+}
+
+.mainChart {
+  flex: 1;
+  min-height: 0;
+}
+
+.volumeChart {
+  height: 60px;
+  position: relative;
+}
+
+.volumeLabel {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  z-index: 1;
+}
+
+.tooltip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.tooltipTime {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.tooltipPrice {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
