@@ -23,6 +23,30 @@ import {
 } from 'lightweight-charts'
 import { StockQuote } from '../lib/stockData'
 import styles from './StockChart.module.css'
+import {
+  ADL,
+  ADX,
+  ATR,
+  AwesomeOscillator,
+  BollingerBands,
+  CCI,
+  EMA,
+  ForceIndex,
+  IchimokuCloud,
+  KeltnerChannels,
+  MACD,
+  MFI,
+  OBV,
+  PSAR,
+  ROC,
+  RSI,
+  SMA,
+  Stochastic,
+  TRIX,
+  VWAP,
+  WMA,
+  WilliamsR,
+} from 'technicalindicators'
 
 interface Props {
   stock: StockQuote
@@ -33,6 +57,31 @@ interface Props {
 type ChartType = 'candlestick' | 'line' | 'area' | 'bar' | 'baseline'
 type DrawMode = 'none' | 'trendline' | 'marker' | 'note'
 type Timeframe = '5m' | '15m' | '1h'
+type IndicatorPane = 'overlay' | 'oscillator'
+
+type IndicatorKey =
+  | 'SMA'
+  | 'EMA'
+  | 'WMA'
+  | 'BOLLINGER'
+  | 'VWAP'
+  | 'PSAR'
+  | 'KELTNER'
+  | 'ICHIMOKU'
+  | 'RSI'
+  | 'MACD'
+  | 'STOCH'
+  | 'WILLIAMSR'
+  | 'CCI'
+  | 'ADX'
+  | 'ATR'
+  | 'ROC'
+  | 'TRIX'
+  | 'MFI'
+  | 'OBV'
+  | 'ADL'
+  | 'FORCE'
+  | 'AO'
 
 interface PointAnnotation {
   time: number
@@ -78,6 +127,31 @@ interface AggregatedHistoryBar {
   volume: number
 }
 
+interface CandleDetails {
+  timestamp: number
+  timeLabel: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+interface IndicatorDefinition {
+  key: IndicatorKey
+  label: string
+  pane: IndicatorPane
+  description: string
+}
+
+interface IndicatorLine {
+  id: string
+  label: string
+  pane: IndicatorPane
+  color: string
+  data: Array<{ time: UTCTimestamp; value: number }>
+}
+
 const EMPTY_ANNOTATIONS: StoredAnnotations = {
   trendlines: [],
   markers: [],
@@ -85,6 +159,31 @@ const EMPTY_ANNOTATIONS: StoredAnnotations = {
 }
 
 const STORAGE_PREFIX = 'stockanalysis-lightweight-annotations-v1'
+const INDICATOR_COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185', '#c084fc', '#facc15']
+const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
+  { key: 'SMA', label: 'SMA', pane: 'overlay', description: 'Simple moving average trend smoothing.' },
+  { key: 'EMA', label: 'EMA', pane: 'overlay', description: 'Exponential moving average with faster reaction.' },
+  { key: 'WMA', label: 'WMA', pane: 'overlay', description: 'Weighted moving average emphasizing recent prices.' },
+  { key: 'BOLLINGER', label: 'Bollinger Bands', pane: 'overlay', description: 'Volatility envelopes around moving average.' },
+  { key: 'VWAP', label: 'VWAP', pane: 'overlay', description: 'Volume weighted average price anchor.' },
+  { key: 'PSAR', label: 'Parabolic SAR', pane: 'overlay', description: 'Trend-following stop and reversal points.' },
+  { key: 'KELTNER', label: 'Keltner Channels', pane: 'overlay', description: 'ATR-based channel around EMA.' },
+  { key: 'ICHIMOKU', label: 'Ichimoku', pane: 'overlay', description: 'Multi-line trend and momentum cloud system.' },
+  { key: 'RSI', label: 'RSI', pane: 'oscillator', description: 'Momentum oscillator with overbought/oversold zones.' },
+  { key: 'MACD', label: 'MACD', pane: 'oscillator', description: 'Momentum crossover between fast and slow EMAs.' },
+  { key: 'STOCH', label: 'Stochastic', pane: 'oscillator', description: 'Close-relative momentum (%K/%D).' },
+  { key: 'WILLIAMSR', label: 'Williams %R', pane: 'oscillator', description: 'Momentum on a -100 to 0 scale.' },
+  { key: 'CCI', label: 'CCI', pane: 'oscillator', description: 'Commodity channel deviation oscillator.' },
+  { key: 'ADX', label: 'ADX', pane: 'oscillator', description: 'Trend strength plus DI directional lines.' },
+  { key: 'ATR', label: 'ATR', pane: 'oscillator', description: 'Average true range volatility measure.' },
+  { key: 'ROC', label: 'ROC', pane: 'oscillator', description: 'Rate of change momentum percentage.' },
+  { key: 'TRIX', label: 'TRIX', pane: 'oscillator', description: 'Triple-smoothed momentum oscillator.' },
+  { key: 'MFI', label: 'MFI', pane: 'oscillator', description: 'Volume-weighted RSI-style momentum oscillator.' },
+  { key: 'OBV', label: 'OBV', pane: 'oscillator', description: 'Cumulative volume flow indicator.' },
+  { key: 'ADL', label: 'ADL', pane: 'oscillator', description: 'Accumulation/Distribution line from price+volume.' },
+  { key: 'FORCE', label: 'Force Index', pane: 'oscillator', description: 'Price impulse weighted by volume.' },
+  { key: 'AO', label: 'Awesome Osc', pane: 'oscillator', description: 'Momentum from short vs long midpoint average.' },
+]
 
 function buildStorageKey(symbol: string) {
   return `${STORAGE_PREFIX}:${symbol}`
@@ -140,14 +239,35 @@ function aggregateHistory(history: StockQuote['history'], timeframe: Timeframe):
   return bars
 }
 
+function getBarSpacing(timeframe: Timeframe) {
+  if (timeframe === '5m') return 8
+  if (timeframe === '15m') return 12
+  return 18
+}
+
+function buildAlignedSeries(
+  times: UTCTimestamp[],
+  values: Array<number | undefined | null>,
+): Array<{ time: UTCTimestamp; value: number }> {
+  const validValues = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (validValues.length === 0) return []
+  const startIndex = Math.max(0, times.length - validValues.length)
+  return validValues.map((value, idx) => ({
+    time: times[startIndex + idx],
+    value,
+  }))
+}
+
 export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEnabled }: Props) {
   const [chartType, setChartType] = useState<ChartType>('candlestick')
   const [timeframe, setTimeframe] = useState<Timeframe>('5m')
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
+  const [selectedIndicators, setSelectedIndicators] = useState<IndicatorKey[]>(['SMA', 'EMA', 'RSI'])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [trendlineStart, setTrendlineStart] = useState<PointAnnotation | null>(null)
   const [annotations, setAnnotations] = useState<StoredAnnotations>(EMPTY_ANNOTATIONS)
   const [notePositions, setNotePositions] = useState<NotePosition[]>([])
+  const [selectedCandle, setSelectedCandle] = useState<CandleDetails | null>(null)
 
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -155,12 +275,14 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram', Time> | null>(null)
   const markerPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   const trendlineSeriesRef = useRef<Map<string, ISeriesApi<'Line', Time>>>(new Map())
+  const indicatorSeriesRef = useRef<Map<string, ISeriesApi<'Line', Time>>>(new Map())
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   const drawModeRef = useRef<DrawMode>(drawMode)
   const isFullscreenRef = useRef<boolean>(isFullscreen)
   const trendlineStartRef = useRef<PointAnnotation | null>(trendlineStart)
   const annotationsRef = useRef<StoredAnnotations>(annotations)
+  const candleLookupRef = useRef<Map<number, CandleDetails>>(new Map())
   const updateNotePositionsRef = useRef<() => void>(() => {})
 
   const aggregatedHistory = useMemo(
@@ -168,15 +290,44 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
     [stock.history, timeframe]
   )
 
-  const ohlcData = useMemo(() => sortByTime(aggregatedHistory.map((item) => {
+  const candleLookup = useMemo(() => {
+    const map = new Map<number, CandleDetails>()
+    for (const item of aggregatedHistory) {
+      map.set(item.timestamp, {
+        timestamp: item.timestamp,
+        timeLabel: item.time,
+        open: Number(item.open.toFixed(2)),
+        high: Number(item.high.toFixed(2)),
+        low: Number(item.low.toFixed(2)),
+        close: Number(item.close.toFixed(2)),
+        volume: item.volume,
+      })
+    }
+    return map
+  }, [aggregatedHistory])
+
+  useEffect(() => {
+    candleLookupRef.current = candleLookup
+  }, [candleLookup])
+
+  const ohlcData = useMemo(() => sortByTime(aggregatedHistory.map((item, index) => {
+    const previousClose = index === 0
+      ? item.open
+      : aggregatedHistory[index - 1].close
+    const open = timeframe === '5m' ? previousClose : item.open
+    const close = item.close
+    const fallbackSpread = Math.max(0.02, Math.abs(close - open) * 0.28)
+    const high = Math.max(item.high, open, close) + fallbackSpread
+    const low = Math.max(0.01, Math.min(item.low, open, close) - fallbackSpread)
+
     return {
       time: asUtcTimestamp(item.timestamp),
-      open: Number(item.open.toFixed(2)),
-      high: Number(item.high.toFixed(2)),
-      low: Number(item.low.toFixed(2)),
-      close: Number(item.close.toFixed(2)),
+      open: Number(open.toFixed(2)),
+      high: Number(high.toFixed(2)),
+      low: Number(low.toFixed(2)),
+      close: Number(close.toFixed(2)),
     }
-  })), [aggregatedHistory])
+  })), [aggregatedHistory, timeframe])
 
   const lineLikeData = useMemo(() => sortByTime(ohlcData.map((bar) => ({
     time: bar.time,
@@ -190,6 +341,90 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
       color: item.close >= item.open ? 'rgba(20, 184, 166, 0.48)' : 'rgba(239, 68, 68, 0.48)',
     }
   })), [aggregatedHistory])
+
+  const indicatorLines = useMemo<IndicatorLine[]>(() => {
+    const result: IndicatorLine[] = []
+    const times = aggregatedHistory.map((h) => asUtcTimestamp(h.timestamp))
+    const close = aggregatedHistory.map((h) => h.close)
+    const high = aggregatedHistory.map((h) => h.high)
+    const low = aggregatedHistory.map((h) => h.low)
+    const volume = aggregatedHistory.map((h) => h.volume)
+
+    const pushLine = (id: string, label: string, pane: IndicatorPane, values: Array<number | undefined | null>) => {
+      const data = buildAlignedSeries(times, values)
+      if (data.length === 0) return
+      const color = INDICATOR_COLORS[result.length % INDICATOR_COLORS.length]
+      result.push({ id, label, pane, color, data })
+    }
+
+    for (const key of selectedIndicators) {
+      try {
+        if (key === 'SMA') pushLine('SMA', 'SMA(14)', 'overlay', SMA.calculate({ period: 14, values: close }))
+        if (key === 'EMA') pushLine('EMA', 'EMA(14)', 'overlay', EMA.calculate({ period: 14, values: close }))
+        if (key === 'WMA') pushLine('WMA', 'WMA(14)', 'overlay', WMA.calculate({ period: 14, values: close }))
+        if (key === 'VWAP') pushLine('VWAP', 'VWAP', 'overlay', VWAP.calculate({ close, high, low, volume }))
+        if (key === 'PSAR') pushLine('PSAR', 'PSAR', 'overlay', PSAR.calculate({ high, low, step: 0.02, max: 0.2 }))
+        if (key === 'ATR') pushLine('ATR', 'ATR(14)', 'oscillator', ATR.calculate({ period: 14, high, low, close }))
+        if (key === 'RSI') pushLine('RSI', 'RSI(14)', 'oscillator', RSI.calculate({ period: 14, values: close }))
+        if (key === 'ROC') pushLine('ROC', 'ROC(12)', 'oscillator', ROC.calculate({ period: 12, values: close }))
+        if (key === 'TRIX') pushLine('TRIX', 'TRIX(18)', 'oscillator', TRIX.calculate({ period: 18, values: close }))
+        if (key === 'CCI') pushLine('CCI', 'CCI(20)', 'oscillator', CCI.calculate({ period: 20, high, low, close }))
+        if (key === 'MFI') pushLine('MFI', 'MFI(14)', 'oscillator', MFI.calculate({ period: 14, high, low, close, volume }))
+        if (key === 'WILLIAMSR') pushLine('WILLIAMSR', 'Williams%R(14)', 'oscillator', WilliamsR.calculate({ period: 14, high, low, close }))
+        if (key === 'OBV') pushLine('OBV', 'OBV', 'oscillator', OBV.calculate({ close, volume }))
+        if (key === 'ADL') pushLine('ADL', 'ADL', 'oscillator', ADL.calculate({ close, high, low, volume }))
+        if (key === 'FORCE') pushLine('FORCE', 'Force(13)', 'oscillator', ForceIndex.calculate({ close, volume, period: 13 }))
+        if (key === 'AO') pushLine('AO', 'Awesome', 'oscillator', AwesomeOscillator.calculate({ high, low, fastPeriod: 5, slowPeriod: 34 }))
+        if (key === 'BOLLINGER') {
+          const bands = BollingerBands.calculate({ period: 20, stdDev: 2, values: close })
+          pushLine('BOLL_MID', 'BB Mid', 'overlay', bands.map((b) => b.middle))
+          pushLine('BOLL_UP', 'BB Upper', 'overlay', bands.map((b) => b.upper))
+          pushLine('BOLL_LOW', 'BB Lower', 'overlay', bands.map((b) => b.lower))
+        }
+        if (key === 'KELTNER') {
+          const channels = KeltnerChannels.calculate({ high, low, close, maPeriod: 20, atrPeriod: 10, multiplier: 2, useSMA: false })
+          pushLine('KELT_MID', 'Kelt Mid', 'overlay', channels.map((c) => c.middle))
+          pushLine('KELT_UP', 'Kelt Upper', 'overlay', channels.map((c) => c.upper))
+          pushLine('KELT_LOW', 'Kelt Lower', 'overlay', channels.map((c) => c.lower))
+        }
+        if (key === 'ICHIMOKU') {
+          const cloud = IchimokuCloud.calculate({ high, low, conversionPeriod: 9, basePeriod: 26, spanPeriod: 52, displacement: 26 })
+          pushLine('ICHI_CONV', 'Ichi Conv', 'overlay', cloud.map((c) => c.conversion))
+          pushLine('ICHI_BASE', 'Ichi Base', 'overlay', cloud.map((c) => c.base))
+          pushLine('ICHI_SPAN_A', 'Ichi SpanA', 'overlay', cloud.map((c) => c.spanA))
+          pushLine('ICHI_SPAN_B', 'Ichi SpanB', 'overlay', cloud.map((c) => c.spanB))
+        }
+        if (key === 'MACD') {
+          const macd = MACD.calculate({
+            values: close,
+            fastPeriod: 12,
+            slowPeriod: 26,
+            signalPeriod: 9,
+            SimpleMAOscillator: false,
+            SimpleMASignal: false,
+          })
+          pushLine('MACD_LINE', 'MACD', 'oscillator', macd.map((m) => m.MACD))
+          pushLine('MACD_SIGNAL', 'MACD Signal', 'oscillator', macd.map((m) => m.signal))
+          pushLine('MACD_HIST', 'MACD Hist', 'oscillator', macd.map((m) => m.histogram))
+        }
+        if (key === 'STOCH') {
+          const stochastic = Stochastic.calculate({ high, low, close, period: 14, signalPeriod: 3 })
+          pushLine('STOCH_K', 'Stoch %K', 'oscillator', stochastic.map((s) => s.k))
+          pushLine('STOCH_D', 'Stoch %D', 'oscillator', stochastic.map((s) => s.d))
+        }
+        if (key === 'ADX') {
+          const adx = ADX.calculate({ high, low, close, period: 14 })
+          pushLine('ADX_LINE', 'ADX', 'oscillator', adx.map((a) => a.adx))
+          pushLine('ADX_PDI', '+DI', 'oscillator', adx.map((a) => a.pdi))
+          pushLine('ADX_MDI', '-DI', 'oscillator', adx.map((a) => a.mdi))
+        }
+      } catch {
+        // Skip indicators that cannot be computed for current data length.
+      }
+    }
+
+    return result
+  }, [aggregatedHistory, selectedIndicators])
 
   useEffect(() => {
     drawModeRef.current = drawMode
@@ -269,10 +504,16 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
         background: { type: ColorType.Solid, color: '#0f172a' },
         textColor: '#94a3b8',
         fontFamily: 'IBM Plex Mono, monospace',
+        attributionLogo: false,
+        panes: {
+          enableResize: true,
+          separatorColor: 'rgba(148,163,184,0.4)',
+          separatorHoverColor: 'rgba(148,163,184,0.7)',
+        },
       },
       rightPriceScale: {
         borderColor: '#1e293b',
-        scaleMargins: { top: 0.08, bottom: 0.22 },
+        scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       grid: {
         vertLines: { color: 'rgba(148,163,184,0.12)' },
@@ -285,10 +526,18 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
         borderColor: '#1e293b',
         timeVisible: true,
         secondsVisible: false,
+        barSpacing: getBarSpacing(timeframe),
+        minBarSpacing: 4,
+        rightOffset: 0,
+        shiftVisibleRangeOnNewBar: false,
+        fixLeftEdge: true,
+        rightBarStaysOnScroll: true,
+        lockVisibleTimeRangeOnResize: true,
       },
       handleScroll: {
         mouseWheel: true,
         pressedMouseMove: true,
+        horzTouchDrag: true,
         vertTouchDrag: false,
       },
     })
@@ -342,16 +591,20 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
       priceFormat: {
         type: 'volume',
       },
-    })
+    }, 1)
     volumeSeriesRef.current = volumeSeries
 
-    chart.priceScale('volume').applyOptions({
+    chart.priceScale('volume', 1).applyOptions({
       scaleMargins: {
-        top: 0.8,
-        bottom: 0,
+        top: 0.1,
+        bottom: 0.02,
       },
       visible: false,
     })
+
+    const panes = chart.panes()
+    panes[0]?.setStretchFactor(0.78)
+    panes[1]?.setStretchFactor(0.22)
 
     markerPluginRef.current = createSeriesMarkers(mainSeries, [])
 
@@ -370,6 +623,11 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
 
     const onClick = (param: MouseEventParams<Time>) => {
       const point = resolveClickPoint(param)
+      const clickedTime = param.time
+      if (typeof clickedTime === 'number') {
+        const candle = candleLookupRef.current.get(clickedTime)
+        if (candle) setSelectedCandle(candle)
+      }
       if (!point) return
 
       if (!isFullscreenRef.current) return
@@ -452,8 +710,9 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
       volumeSeriesRef.current = null
       markerPluginRef.current = null
       trendlineSeriesRef.current.clear()
+      indicatorSeriesRef.current.clear()
     }
-  }, [chartType, stock.symbol])
+  }, [chartType, stock.symbol, timeframe])
 
   useEffect(() => {
     if (!mainSeriesRef.current || !volumeSeriesRef.current) return
@@ -465,10 +724,11 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
     }
     volumeSeriesRef.current.setData(volumeData)
 
-    if (chartRef.current?.timeScale()) {
-      chartRef.current.timeScale().fitContent()
-    }
   }, [chartType, lineLikeData, ohlcData, volumeData])
+
+  useEffect(() => {
+    chartRef.current?.timeScale().fitContent()
+  }, [chartType, timeframe, stock.symbol])
 
   useEffect(() => {
     if (!markerPluginRef.current) return
@@ -522,6 +782,40 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
     })
   }, [annotations.trendlines])
 
+  useEffect(() => {
+    if (!chartRef.current) return
+
+    indicatorSeriesRef.current.forEach((series) => {
+      chartRef.current?.removeSeries(series)
+    })
+    indicatorSeriesRef.current.clear()
+
+    for (const line of indicatorLines) {
+      if (!chartRef.current) continue
+      const paneIndex = line.pane === 'overlay' ? 0 : 2
+      const series = chartRef.current.addSeries(LineSeries, {
+        color: line.color,
+        lineWidth: 1,
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      }, paneIndex)
+      series.setData(line.data)
+      indicatorSeriesRef.current.set(line.id, series)
+    }
+
+    const panes = chartRef.current.panes()
+    const hasOscillator = indicatorLines.some((line) => line.pane === 'oscillator')
+    if (hasOscillator && panes.length >= 3) {
+      panes[0]?.setStretchFactor(0.62)
+      panes[1]?.setStretchFactor(0.18)
+      panes[2]?.setStretchFactor(0.2)
+    } else if (panes.length >= 2) {
+      panes[0]?.setStretchFactor(0.78)
+      panes[1]?.setStretchFactor(0.22)
+    }
+  }, [indicatorLines])
+
   updateNotePositionsRef.current = () => {
     if (!chartRef.current || !mainSeriesRef.current) {
       setNotePositions((prev) => (prev.length === 0 ? prev : []))
@@ -562,6 +856,10 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
     updateNotePositionsRef.current()
   }, [annotations.notes, chartType, lineLikeData, ohlcData])
 
+  useEffect(() => {
+    setSelectedCandle(null)
+  }, [stock.symbol, timeframe])
+
   function clearAnnotations() {
     setAnnotations(EMPTY_ANNOTATIONS)
     setTrendlineStart(null)
@@ -574,6 +872,15 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
     if (!isFullscreen) return
     setDrawMode(mode)
   }
+
+  function toggleIndicator(key: IndicatorKey) {
+    setSelectedIndicators((prev) => (
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    ))
+  }
+
+  const overlayIndicatorLines = indicatorLines.filter((line) => line.pane === 'overlay')
+  const oscillatorIndicatorLines = indicatorLines.filter((line) => line.pane === 'oscillator')
 
   return (
     <div className={`${styles.wrapper} ${isFullscreen ? styles.fullscreenWrapper : ''}`}>
@@ -640,6 +947,25 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
           </select>
         </div>
 
+        <details className={styles.indicatorMenu}>
+          <summary className={styles.indicatorSummary}>
+            Indicators ({selectedIndicators.length})
+          </summary>
+          <div className={styles.indicatorGrid}>
+            {INDICATOR_DEFINITIONS.map((indicator) => (
+              <button
+                key={indicator.key}
+                type="button"
+                className={`${styles.indicatorBtn} ${selectedIndicators.includes(indicator.key) ? styles.activeIndicator : ''}`}
+                onClick={() => toggleIndicator(indicator.key)}
+                title={indicator.description}
+              >
+                {indicator.label}
+              </button>
+            ))}
+          </div>
+        </details>
+
         <div className={styles.controlGroup}>
           <span className={styles.label}>Draw</span>
           <div className={styles.modeButtons}>
@@ -696,8 +1022,51 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
             : `TF: ${timeframe.toUpperCase()} | MODE: ${drawMode.toUpperCase()}${autoRefreshEnabled ? '' : ' (LIVE UPDATES PAUSED)'}`}
       </div>
 
+      {indicatorLines.length > 0 && (
+        <div className={styles.indicatorLegend}>
+          {overlayIndicatorLines.length > 0 && (
+            <div className={styles.legendGroup}>
+              <span className={styles.legendTitle}>PRICE PANE</span>
+              {overlayIndicatorLines.map((line) => (
+                <span key={line.id} className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ backgroundColor: line.color }} />
+                  {line.label}
+                </span>
+              ))}
+            </div>
+          )}
+          {oscillatorIndicatorLines.length > 0 && (
+            <div className={styles.legendGroup}>
+              <span className={styles.legendTitle}>OSCILLATOR PANE</span>
+              {oscillatorIndicatorLines.map((line) => (
+                <span key={line.id} className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ backgroundColor: line.color }} />
+                  {line.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {selectedCandle && (
+        <div className={styles.candlePanel}>
+          <span className={styles.candleItem}>TIME: {selectedCandle.timeLabel}</span>
+          <span className={styles.candleItem}>OPEN: ${selectedCandle.open.toFixed(2)}</span>
+          <span className={styles.candleItem}>HIGH: ${selectedCandle.high.toFixed(2)}</span>
+          <span className={styles.candleItem}>LOW: ${selectedCandle.low.toFixed(2)}</span>
+          <span className={styles.candleItem}>CLOSE: ${selectedCandle.close.toFixed(2)}</span>
+          <span className={styles.candleItem}>VOL: {selectedCandle.volume.toLocaleString('en-US')}</span>
+        </div>
+      )}
+
       <div className={styles.chartStack}>
         <div className={styles.mainChart} ref={chartContainerRef} />
+        <div className={styles.priceBadge}>PRICE PANE</div>
+        <div className={`${styles.volumeBadge} ${oscillatorIndicatorLines.length > 0 ? styles.volumeWithOsc : styles.volumeNoOsc}`}>
+          VOLUME PANE
+        </div>
+        {oscillatorIndicatorLines.length > 0 && <div className={styles.oscillatorBadge}>OSCILLATOR PANE</div>}
         <div className={styles.noteLayer}>
           {notePositions.map((note) => (
             <div
