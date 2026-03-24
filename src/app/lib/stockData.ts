@@ -1,7 +1,7 @@
 export interface StockQuote {
   symbol: string
   name: string
-  sector: string
+  sector?: string
   price: number
   change: number
   changePercent: number
@@ -25,8 +25,18 @@ export interface StockQuote {
   shortFloat?: number
   analystRating?: 'Strong Buy' | 'Buy' | 'Hold' | 'Sell' | 'Strong Sell'
   priceTarget?: number
-  history: { timestamp: number; time: string; price: number; volume: number }[]
+  history: {
+    timestamp: number
+    time: string
+    price: number
+    volume: number
+    open?: number
+    high?: number
+    low?: number
+  }[]
 }
+
+export type ChartTimeframe = '5m' | '15m' | '1h' | '1d'
 
 const MOCK_BASE: Omit<StockQuote, 'history'>[] = [
   // TECH
@@ -95,14 +105,81 @@ export function getMockStocks(): StockQuote[] {
   return MOCK_BASE.map(s => ({ ...s, history: generateHistory(s.price, s.changePercent) }))
 }
 
-export async function fetchStockQuotes(symbols: string[]): Promise<StockQuote[]> {
+export async function fetchStockQuotes(symbols: string[], timeframe: ChartTimeframe = '5m'): Promise<StockQuote[]> {
   try {
-    const res = await fetch(`/api/quotes?symbols=${symbols.join(',')}`)
+    const res = await fetch(`/api/quotes?symbols=${symbols.join(',')}&timeframe=${timeframe}`)
     if (!res.ok) throw new Error('API error')
-    return await res.json()
+    const data = await res.json()
+    return normalizeApiQuotes(data, symbols)
   } catch {
     return getMockStocks().filter(s => symbols.includes(s.symbol))
   }
+}
+
+function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
+  const list = Array.isArray(raw) ? raw : []
+  const fallbackMap = new Map(getMockStocks().map((s) => [s.symbol, s]))
+
+  const normalized = list
+    .filter((q: any) => q && symbols.includes(q.symbol))
+    .map((q: any): StockQuote => {
+      const fallback = fallbackMap.get(q.symbol)
+      const historyRaw = Array.isArray(q.history) ? q.history : []
+      const history = historyRaw
+        .map((h: any) => {
+          const ts = Number(h?.timestamp ?? h?.ts)
+          if (!Number.isFinite(ts)) return null
+          const price = Number(h?.price)
+          return {
+            timestamp: ts,
+            time: typeof h?.time === 'string' ? h.time : new Date(ts * 1000).toLocaleString(),
+            price: Number.isFinite(price) ? price : Number(q?.price ?? fallback?.price ?? 0),
+            volume: Number(h?.volume ?? 0),
+            open: Number.isFinite(Number(h?.open)) ? Number(h.open) : undefined,
+            high: Number.isFinite(Number(h?.high)) ? Number(h.high) : undefined,
+            low: Number.isFinite(Number(h?.low)) ? Number(h.low) : undefined,
+          }
+        })
+        .filter(Boolean) as StockQuote['history']
+      history.sort((a, b) => a.timestamp - b.timestamp)
+
+      return {
+        symbol: String(q.symbol),
+        name: q.name ?? fallback?.name ?? q.symbol,
+        sector: fallback?.sector ?? 'Market',
+        price: Number(q.price ?? fallback?.price ?? 0),
+        change: Number(q.change ?? fallback?.change ?? 0),
+        changePercent: Number(q.changePercent ?? fallback?.changePercent ?? 0),
+        open: Number(q.open ?? fallback?.open ?? 0),
+        high: Number(q.high ?? fallback?.high ?? 0),
+        low: Number(q.low ?? fallback?.low ?? 0),
+        prevClose: Number(q.prevClose ?? fallback?.prevClose ?? 0),
+        volume: Number(q.volume ?? fallback?.volume ?? 0),
+        avgVolume: Number(q.avgVolume ?? fallback?.avgVolume ?? 0),
+        marketCap: q.marketCap ?? fallback?.marketCap,
+        pe: q.pe ?? fallback?.pe,
+        forwardPe: q.forwardPe ?? fallback?.forwardPe,
+        eps: q.eps ?? fallback?.eps,
+        beta: q.beta ?? fallback?.beta,
+        dividendYield: q.dividendYield ?? fallback?.dividendYield,
+        dividendAmount: q.dividendAmount ?? fallback?.dividendAmount,
+        week52High: q.week52High ?? fallback?.week52High,
+        week52Low: q.week52Low ?? fallback?.week52Low,
+        floatShares: q.floatShares ?? fallback?.floatShares,
+        shortRatio: q.shortRatio ?? fallback?.shortRatio,
+        shortFloat: q.shortFloat ?? fallback?.shortFloat,
+        analystRating: q.analystRating ?? fallback?.analystRating,
+        priceTarget: q.priceTarget ?? fallback?.priceTarget,
+        history: history.length > 0 ? history : fallback?.history ?? [],
+      }
+    })
+
+  const missing = symbols
+    .filter((s) => !normalized.some((q) => q.symbol === s))
+    .map((s) => fallbackMap.get(s))
+    .filter(Boolean) as StockQuote[]
+
+  return [...normalized, ...missing]
 }
 
 export function formatVolume(v: number): string {

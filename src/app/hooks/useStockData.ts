@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { getMockStocks, StockQuote, DEFAULT_WATCHLIST } from '../lib/stockData'
+import { fetchStockQuotes, StockQuote, DEFAULT_WATCHLIST, type ChartTimeframe } from '../lib/stockData'
 
 export function useStockData() {
   const [stocks, setStocks] = useState<StockQuote[]>([])
@@ -9,43 +9,36 @@ export function useStockData() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [selectedSymbol, setSelectedSymbol] = useState<string>('AAPL')
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>('5m')
 
-  const refresh = useCallback(() => {
-    // Simulate price drift on refresh
-    setStocks(prev => {
-      if (prev.length === 0) return prev
-      return prev.map(s => {
-        const drift = (Math.random() - 0.49) * 0.4
-        const newPrice = parseFloat((s.price + drift).toFixed(2))
-        const newChange = parseFloat((s.change + drift).toFixed(2))
-        const newChangePct = parseFloat(((newChange / s.prevClose) * 100).toFixed(2))
-        const newHistory = [
-          ...s.history.slice(1),
-          {
-            timestamp: (s.history[s.history.length - 1]?.timestamp ?? Math.floor(Date.now() / 1000)) + 300,
-            time: new Date(((s.history[s.history.length - 1]?.timestamp ?? Math.floor(Date.now() / 1000)) + 300) * 1000)
-              .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-            price: newPrice,
-            volume: Math.floor(Math.random() * 500_000 + 100_000),
-          },
-        ]
-        return { ...s, price: newPrice, change: newChange, changePercent: newChangePct, history: newHistory }
-      })
-    })
+  const refresh = useCallback(async () => {
+    const data = await fetchStockQuotes(DEFAULT_WATCHLIST, timeframe)
+    setStocks(data)
     setLastUpdated(new Date())
-  }, [])
+  }, [timeframe])
 
   useEffect(() => {
-    const data = getMockStocks()
-    setStocks(data)
-    setLoading(false)
-    setLastUpdated(new Date())
-  }, [])
+    let cancelled = false
 
-  // Auto-refresh every 5 seconds
+    const load = async () => {
+      const data = await fetchStockQuotes(DEFAULT_WATCHLIST, timeframe)
+      if (cancelled) return
+      setStocks(data)
+      setLoading(false)
+      setLastUpdated(new Date())
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [timeframe])
+
   useEffect(() => {
     if (!autoRefreshEnabled) return
-    const id = setInterval(refresh, 5000)
+    const id = setInterval(() => {
+      refresh()
+    }, 5000)
     return () => clearInterval(id)
   }, [autoRefreshEnabled, refresh])
 
@@ -61,5 +54,7 @@ export function useStockData() {
     refresh,
     autoRefreshEnabled,
     setAutoRefreshEnabled,
+    timeframe,
+    setTimeframe,
   }
 }

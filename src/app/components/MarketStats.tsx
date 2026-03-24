@@ -66,7 +66,7 @@ export default function MarketStats({ stock }: { stock: StockQuote }) {
         <div className={styles.stockMeta}>
           <div className={styles.topLine}>
             <span className={styles.symbol}>{stock.symbol}</span>
-            <span className={styles.sector}>{stock.sector}</span>
+            <span className={styles.sector}>{stock.sector ?? 'Market'}</span>
           </div>
           <div className={styles.name}>{stock.name}</div>
         </div>

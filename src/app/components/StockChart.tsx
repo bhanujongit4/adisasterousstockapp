@@ -21,7 +21,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts'
-import { StockQuote } from '../lib/stockData'
+import { StockQuote, type ChartTimeframe } from '../lib/stockData'
 import styles from './StockChart.module.css'
 import {
   ADL,
@@ -52,11 +52,14 @@ interface Props {
   stock: StockQuote
   autoRefreshEnabled: boolean
   setAutoRefreshEnabled: Dispatch<SetStateAction<boolean>>
+  timeframe: ChartTimeframe
+  setTimeframe: Dispatch<SetStateAction<ChartTimeframe>>
+  theme: 'dark' | 'light'
 }
 
 type ChartType = 'candlestick' | 'line' | 'area' | 'bar' | 'baseline'
 type DrawMode = 'none' | 'trendline' | 'marker' | 'note'
-type Timeframe = '5m' | '15m' | '1h'
+type Timeframe = ChartTimeframe
 type IndicatorPane = 'overlay' | 'oscillator'
 
 type IndicatorKey =
@@ -159,7 +162,7 @@ const EMPTY_ANNOTATIONS: StoredAnnotations = {
 }
 
 const STORAGE_PREFIX = 'stockanalysis-lightweight-annotations-v1'
-const INDICATOR_COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185', '#c084fc', '#facc15']
+const INDICATOR_COLORS = ['#29c38a', '#e3a548', '#e06d78', '#9aa6bb', '#7bc5a2', '#c7a76a', '#b08ad2', '#7f8ca2', '#89b9a6']
 const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: 'SMA', label: 'SMA', pane: 'overlay', description: 'Simple moving average trend smoothing.' },
   { key: 'EMA', label: 'EMA', pane: 'overlay', description: 'Exponential moving average with faster reaction.' },
@@ -202,7 +205,7 @@ function formatBucketTime(timestamp: number) {
 }
 
 function aggregateHistory(history: StockQuote['history'], timeframe: Timeframe): AggregatedHistoryBar[] {
-  const minutes = timeframe === '5m' ? 5 : timeframe === '15m' ? 15 : 60
+  const minutes = timeframe === '5m' ? 5 : timeframe === '15m' ? 15 : timeframe === '1h' ? 60 : 1440
   const bucketSizeSeconds = minutes * 60
   const sorted = [...history].sort((a, b) => a.timestamp - b.timestamp)
   if (sorted.length === 0) return []
@@ -217,20 +220,25 @@ function aggregateHistory(history: StockQuote['history'], timeframe: Timeframe):
     if (!currentBar || bucketStart !== currentBucketStart) {
       if (currentBar) bars.push(currentBar)
       currentBucketStart = bucketStart
+      const open = Number.isFinite(Number(item.open)) ? Number(item.open) : item.price
+      const high = Number.isFinite(Number(item.high)) ? Number(item.high) : item.price
+      const low = Number.isFinite(Number(item.low)) ? Number(item.low) : item.price
       currentBar = {
         timestamp: bucketStart,
         time: formatBucketTime(bucketStart),
-        open: item.price,
-        high: item.price,
-        low: item.price,
+        open,
+        high,
+        low,
         close: item.price,
         volume: item.volume,
       }
       continue
     }
 
-    currentBar.high = Math.max(currentBar.high, item.price)
-    currentBar.low = Math.min(currentBar.low, item.price)
+    const high = Number.isFinite(Number(item.high)) ? Number(item.high) : item.price
+    const low = Number.isFinite(Number(item.low)) ? Number(item.low) : item.price
+    currentBar.high = Math.max(currentBar.high, high, item.price)
+    currentBar.low = Math.min(currentBar.low, low, item.price)
     currentBar.close = item.price
     currentBar.volume += item.volume
   }
@@ -240,9 +248,10 @@ function aggregateHistory(history: StockQuote['history'], timeframe: Timeframe):
 }
 
 function getBarSpacing(timeframe: Timeframe) {
-  if (timeframe === '5m') return 8
-  if (timeframe === '15m') return 12
-  return 18
+  if (timeframe === '5m') return 5
+  if (timeframe === '15m') return 7
+  if (timeframe === '1h') return 10
+  return 14
 }
 
 function buildAlignedSeries(
@@ -258,11 +267,17 @@ function buildAlignedSeries(
   }))
 }
 
-export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEnabled }: Props) {
+export default function StockChart({
+  stock,
+  autoRefreshEnabled,
+  setAutoRefreshEnabled,
+  timeframe,
+  setTimeframe,
+  theme,
+}: Props) {
   const [chartType, setChartType] = useState<ChartType>('candlestick')
-  const [timeframe, setTimeframe] = useState<Timeframe>('5m')
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
-  const [selectedIndicators, setSelectedIndicators] = useState<IndicatorKey[]>(['SMA', 'EMA', 'RSI'])
+  const [selectedIndicators, setSelectedIndicators] = useState<IndicatorKey[]>([])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [trendlineStart, setTrendlineStart] = useState<PointAnnotation | null>(null)
   const [annotations, setAnnotations] = useState<StoredAnnotations>(EMPTY_ANNOTATIONS)
@@ -497,33 +512,40 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
   useEffect(() => {
     const chartContainer = chartContainerRef.current
     if (!chartContainer) return
+    const rootStyle = getComputedStyle(document.documentElement)
+    const bgSecondary = rootStyle.getPropertyValue('--bg-secondary').trim() || '#0c0e11'
+    const textSecondary = rootStyle.getPropertyValue('--text-secondary').trim() || '#98a5b9'
+    const border = rootStyle.getPropertyValue('--border').trim() || '#242a35'
+    const borderBright = rootStyle.getPropertyValue('--border-bright').trim() || '#343e4d'
+    const green = rootStyle.getPropertyValue('--green').trim() || '#29c38a'
+    const red = rootStyle.getPropertyValue('--red').trim() || '#e15a67'
 
     const chart = createChart(chartContainer, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: '#0f172a' },
-        textColor: '#94a3b8',
-        fontFamily: 'IBM Plex Mono, monospace',
+        background: { type: ColorType.Solid, color: bgSecondary },
+        textColor: textSecondary,
+        fontFamily: 'JetBrains Mono, monospace',
         attributionLogo: false,
         panes: {
           enableResize: true,
-          separatorColor: 'rgba(148,163,184,0.4)',
-          separatorHoverColor: 'rgba(148,163,184,0.7)',
+          separatorColor: borderBright,
+          separatorHoverColor: textSecondary,
         },
       },
       rightPriceScale: {
-        borderColor: '#1e293b',
+        borderColor: border,
         scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       grid: {
-        vertLines: { color: 'rgba(148,163,184,0.12)' },
-        horzLines: { color: 'rgba(148,163,184,0.12)' },
+        vertLines: { color: border },
+        horzLines: { color: border },
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
       },
       timeScale: {
-        borderColor: '#1e293b',
+        borderColor: border,
         timeVisible: true,
         secondsVisible: false,
         barSpacing: getBarSpacing(timeframe),
@@ -547,38 +569,38 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
 
     if (chartType === 'candlestick') {
       mainSeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#14b8a6',
-        downColor: '#ef4444',
-        borderUpColor: '#14b8a6',
-        borderDownColor: '#ef4444',
-        wickUpColor: '#14b8a6',
-        wickDownColor: '#ef4444',
+        upColor: green,
+        downColor: red,
+        borderUpColor: green,
+        borderDownColor: red,
+        wickUpColor: green,
+        wickDownColor: red,
       })
     } else if (chartType === 'line') {
       mainSeries = chart.addSeries(LineSeries, {
-        color: isUpDay ? '#14b8a6' : '#ef4444',
+        color: isUpDay ? green : red,
         lineWidth: 2,
       })
     } else if (chartType === 'area') {
       mainSeries = chart.addSeries(AreaSeries, {
-        lineColor: isUpDay ? '#14b8a6' : '#ef4444',
-        topColor: isUpDay ? 'rgba(20,184,166,0.35)' : 'rgba(239,68,68,0.35)',
-        bottomColor: 'rgba(15,23,42,0.03)',
+        lineColor: isUpDay ? green : red,
+        topColor: isUpDay ? 'rgba(41,195,138,0.24)' : 'rgba(225,90,103,0.24)',
+        bottomColor: 'rgba(0,0,0,0)',
         lineWidth: 2,
       })
     } else if (chartType === 'bar') {
       mainSeries = chart.addSeries(BarSeries, {
-        upColor: '#14b8a6',
-        downColor: '#ef4444',
+        upColor: green,
+        downColor: red,
       })
     } else {
       mainSeries = chart.addSeries(BaselineSeries, {
-        topLineColor: '#14b8a6',
-        topFillColor1: 'rgba(20,184,166,0.35)',
-        topFillColor2: 'rgba(20,184,166,0.07)',
-        bottomLineColor: '#ef4444',
-        bottomFillColor1: 'rgba(239,68,68,0.07)',
-        bottomFillColor2: 'rgba(239,68,68,0.35)',
+        topLineColor: green,
+        topFillColor1: 'rgba(41,195,138,0.24)',
+        topFillColor2: 'rgba(41,195,138,0.06)',
+        bottomLineColor: red,
+        bottomFillColor1: 'rgba(225,90,103,0.06)',
+        bottomFillColor2: 'rgba(225,90,103,0.24)',
         baseValue: { type: 'price', price: stock.prevClose },
         lineWidth: 2,
       })
@@ -712,7 +734,7 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
       trendlineSeriesRef.current.clear()
       indicatorSeriesRef.current.clear()
     }
-  }, [chartType, stock.symbol, timeframe])
+  }, [chartType, stock.symbol, theme, timeframe])
 
   useEffect(() => {
     if (!mainSeriesRef.current || !volumeSeriesRef.current) return
@@ -927,6 +949,13 @@ export default function StockChart({ stock, autoRefreshEnabled, setAutoRefreshEn
               onClick={() => setTimeframe('1h')}
             >
               1H
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeBtn} ${timeframe === '1d' ? styles.active : ''}`}
+              onClick={() => setTimeframe('1d')}
+            >
+              1D
             </button>
           </div>
         </div>
