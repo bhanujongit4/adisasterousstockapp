@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
   })
 
   const result = symList.map(sym => {
+    const hasQuote = Boolean(quoteMap[sym])
     const q = quoteMap[sym] ?? {}
     const livePrice: number = q.price ?? 0
 
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
       history[history.length - 1].price = livePrice
     }
 
-    return { ...q, symbol: sym, history }
+    return { ...q, symbol: sym, found: hasQuote, history }
   })
 
   return NextResponse.json(result, {

@@ -37,6 +37,10 @@ export interface StockQuote {
 }
 
 export type ChartTimeframe = '5m' | '15m' | '1h' | '1d'
+export interface StockChoice {
+  symbol: string
+  name: string
+}
 
 const MOCK_BASE: Omit<StockQuote, 'history'>[] = [
   // TECH
@@ -121,7 +125,11 @@ function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
   const fallbackMap = new Map(getMockStocks().map((s) => [s.symbol, s]))
 
   const normalized = list
-    .filter((q: any) => q && symbols.includes(q.symbol))
+    .filter((q: any) => {
+      if (!q || !symbols.includes(q.symbol)) return false
+      const hasHistory = Array.isArray(q.history) && q.history.length > 0
+      return q.found !== false || hasHistory
+    })
     .map((q: any): StockQuote => {
       const fallback = fallbackMap.get(q.symbol)
       const historyRaw = Array.isArray(q.history) ? q.history : []
@@ -142,12 +150,13 @@ function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
         })
         .filter(Boolean) as StockQuote['history']
       history.sort((a, b) => a.timestamp - b.timestamp)
+      const latestHistoryPrice = history.length > 0 ? history[history.length - 1].price : undefined
 
       return {
         symbol: String(q.symbol),
         name: q.name ?? fallback?.name ?? q.symbol,
         sector: fallback?.sector ?? 'Market',
-        price: Number(q.price ?? fallback?.price ?? 0),
+        price: Number(q.price ?? latestHistoryPrice ?? fallback?.price ?? 0),
         change: Number(q.change ?? fallback?.change ?? 0),
         changePercent: Number(q.changePercent ?? fallback?.changePercent ?? 0),
         open: Number(q.open ?? fallback?.open ?? 0),
@@ -189,10 +198,16 @@ export function formatVolume(v: number): string {
 }
 
 export function formatMarketCap(v?: number): string {
-  if (!v) return '—'
+  if (!v) return '-'
   if (v >= 1_000_000_000_000) return `$${(v / 1_000_000_000_000).toFixed(2)}T`
   if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`
   return `$${(v / 1_000_000).toFixed(0)}M`
 }
 
-export const DEFAULT_WATCHLIST = MOCK_BASE.map(s => s.symbol)
+export const TOP_32_STOCKS: StockChoice[] = MOCK_BASE.slice(0, 32).map((s) => ({
+  symbol: s.symbol,
+  name: s.name,
+}))
+export const TOP_32_SYMBOLS = TOP_32_STOCKS.map((s) => s.symbol)
+export const DEFAULT_WATCHLIST = TOP_32_SYMBOLS.slice(0, 6)
+
