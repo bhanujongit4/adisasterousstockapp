@@ -21,3 +21,15 @@ create table if not exists user_watchlist (
 
 create index if not exists user_watchlist_user_idx
   on user_watchlist (user_id);
+
+create table if not exists user_annotation (
+  id bigserial primary key,
+  user_id bigint not null references app_user(id) on delete cascade,
+  symbol text not null,
+  kind text not null check (kind in ('trendline', 'marker', 'note')),
+  payload jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_annotation_user_symbol_idx
+  on user_annotation (user_id, symbol, created_at);

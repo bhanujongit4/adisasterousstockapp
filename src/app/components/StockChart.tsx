@@ -107,6 +107,7 @@ interface MarkerAnnotation extends PointAnnotation {
 interface NoteAnnotation extends PointAnnotation {
   id: string
   text: string
+  fontSize?: number
 }
 
 interface StoredAnnotations {
@@ -115,7 +116,21 @@ interface StoredAnnotations {
   notes: NoteAnnotation[]
 }
 
+type AnnotationKind = 'trendline' | 'marker' | 'note'
+
 interface NotePosition extends NoteAnnotation {
+  left: number
+  top: number
+}
+
+interface MarkerControlPosition {
+  id: string
+  left: number
+  top: number
+}
+
+interface TrendlineControlPosition {
+  id: string
   left: number
   top: number
 }
@@ -161,7 +176,6 @@ const EMPTY_ANNOTATIONS: StoredAnnotations = {
   notes: [],
 }
 
-const STORAGE_PREFIX = 'stockanalysis-lightweight-annotations-v1'
 const INDICATOR_COLORS = ['#29c38a', '#e3a548', '#e06d78', '#9aa6bb', '#7bc5a2', '#c7a76a', '#b08ad2', '#7f8ca2', '#89b9a6']
 const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: 'SMA', label: 'SMA', pane: 'overlay', description: 'Simple moving average trend smoothing.' },
@@ -187,10 +201,6 @@ const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: 'FORCE', label: 'Force Index', pane: 'oscillator', description: 'Price impulse weighted by volume.' },
   { key: 'AO', label: 'Awesome Osc', pane: 'oscillator', description: 'Momentum from short vs long midpoint average.' },
 ]
-
-function buildStorageKey(symbol: string) {
-  return `${STORAGE_PREFIX}:${symbol}`
-}
 
 function asUtcTimestamp(value: number): UTCTimestamp {
   return value as UTCTimestamp
@@ -281,7 +291,14 @@ export default function StockChart({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [trendlineStart, setTrendlineStart] = useState<PointAnnotation | null>(null)
   const [annotations, setAnnotations] = useState<StoredAnnotations>(EMPTY_ANNOTATIONS)
+  const [annotationsLoading, setAnnotationsLoading] = useState(false)
+  const [annotationsError, setAnnotationsError] = useState('')
+  const [pendingNotePoint, setPendingNotePoint] = useState<PointAnnotation | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [pendingNotePosition, setPendingNotePosition] = useState<{ left: number; top: number } | null>(null)
   const [notePositions, setNotePositions] = useState<NotePosition[]>([])
+  const [markerControlPositions, setMarkerControlPositions] = useState<MarkerControlPosition[]>([])
+  const [trendlineControlPositions, setTrendlineControlPositions] = useState<TrendlineControlPosition[]>([])
   const [selectedCandle, setSelectedCandle] = useState<CandleDetails | null>(null)
 
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
@@ -298,7 +315,7 @@ export default function StockChart({
   const trendlineStartRef = useRef<PointAnnotation | null>(trendlineStart)
   const annotationsRef = useRef<StoredAnnotations>(annotations)
   const candleLookupRef = useRef<Map<number, CandleDetails>>(new Map())
-  const updateNotePositionsRef = useRef<() => void>(() => {})
+  const updateOverlayPositionsRef = useRef<() => void>(() => {})
 
   const aggregatedHistory = useMemo(
     () => aggregateHistory(stock.history, timeframe),
@@ -441,6 +458,91 @@ export default function StockChart({
     return result
   }, [aggregatedHistory, selectedIndicators])
 
+  async function loadAnnotations(symbol: string) {
+    setAnnotationsLoading(true)
+    setAnnotationsError('')
+    try {
+      const res = await fetch(`/api/annotations?symbol=${encodeURIComponent(symbol)}`)
+      const data = await res.json()
+      if (!res.ok) {
+        setAnnotationsError(data?.error ?? 'Failed to load annotations.')
+        setAnnotations(EMPTY_ANNOTATIONS)
+        return
+      }
+
+      setAnnotations({
+        trendlines: Array.isArray(data?.trendlines) ? data.trendlines : [],
+        markers: Array.isArray(data?.markers) ? data.markers : [],
+        notes: Array.isArray(data?.notes) ? data.notes : [],
+      })
+    } catch {
+      setAnnotationsError('Failed to load annotations.')
+      setAnnotations(EMPTY_ANNOTATIONS)
+    } finally {
+      setAnnotationsLoading(false)
+    }
+  }
+
+  async function createAnnotation(kind: AnnotationKind, payload: unknown): Promise<any | null> {
+    setAnnotationsError('')
+    try {
+      const res = await fetch('/api/annotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: stock.symbol, kind, payload }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAnnotationsError(data?.error ?? 'Failed to save annotation.')
+        return null
+      }
+      return data?.annotation ?? null
+    } catch {
+      setAnnotationsError('Failed to save annotation.')
+      return null
+    }
+  }
+
+  async function deleteAnnotation(id: string) {
+    setAnnotationsError('')
+    try {
+      const res = await fetch('/api/annotations', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: stock.symbol, id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAnnotationsError(data?.error ?? 'Failed to delete annotation.')
+        return false
+      }
+      return true
+    } catch {
+      setAnnotationsError('Failed to delete annotation.')
+      return false
+    }
+  }
+
+  async function updateAnnotation(id: string, payload: unknown): Promise<any | null> {
+    setAnnotationsError('')
+    try {
+      const res = await fetch('/api/annotations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: stock.symbol, id, payload }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAnnotationsError(data?.error ?? 'Failed to update annotation.')
+        return null
+      }
+      return data?.annotation ?? null
+    } catch {
+      setAnnotationsError('Failed to update annotation.')
+      return null
+    }
+  }
+
   useEffect(() => {
     drawModeRef.current = drawMode
   }, [drawMode])
@@ -458,14 +560,12 @@ export default function StockChart({
   }, [annotations])
 
   useEffect(() => {
-    if (!isFullscreen || drawMode === 'none') return
-    if (autoRefreshEnabled) setAutoRefreshEnabled(false)
-  }, [autoRefreshEnabled, drawMode, isFullscreen, setAutoRefreshEnabled])
-
-  useEffect(() => {
     if (!isFullscreen) {
       setDrawMode('none')
       setTrendlineStart(null)
+      setPendingNotePoint(null)
+      setNoteDraft('')
+      setPendingNotePosition(null)
     }
   }, [isFullscreen])
 
@@ -481,33 +581,12 @@ export default function StockChart({
   }, [isFullscreen])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const raw = localStorage.getItem(buildStorageKey(stock.symbol))
-
-    if (!raw) {
-      setAnnotations(EMPTY_ANNOTATIONS)
-      setTrendlineStart(null)
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Partial<StoredAnnotations>
-      setAnnotations({
-        trendlines: parsed.trendlines ?? [],
-        markers: parsed.markers ?? [],
-        notes: parsed.notes ?? [],
-      })
-    } catch {
-      setAnnotations(EMPTY_ANNOTATIONS)
-    }
-
+    loadAnnotations(stock.symbol)
     setTrendlineStart(null)
+    setPendingNotePoint(null)
+    setNoteDraft('')
+    setPendingNotePosition(null)
   }, [stock.symbol])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(buildStorageKey(stock.symbol), JSON.stringify(annotations))
-  }, [annotations, stock.symbol])
 
   useEffect(() => {
     const chartContainer = chartContainerRef.current
@@ -655,35 +734,25 @@ export default function StockChart({
       if (!isFullscreenRef.current) return
 
       if (drawModeRef.current === 'marker') {
-        const marker: MarkerAnnotation = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        const payload = {
           time: point.time,
           price: point.price,
           color: '#22c55e',
           label: 'M',
         }
-
-        setAnnotations((prev) => ({
-          ...prev,
-          markers: [...prev.markers, marker],
-        }))
+        void createAnnotation('marker', payload).then((saved) => {
+          if (!saved) return
+          const marker: MarkerAnnotation = { ...payload, id: String(saved.id) }
+          setAnnotations((prev) => ({
+            ...prev,
+            markers: [...prev.markers, marker],
+          }))
+        })
       }
 
       if (drawModeRef.current === 'note') {
-        const note = window.prompt('Write your note for this chart coordinate:')
-        if (!note || !note.trim()) return
-
-        const notePoint: NoteAnnotation = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          time: point.time,
-          price: point.price,
-          text: note.trim(),
-        }
-
-        setAnnotations((prev) => ({
-          ...prev,
-          notes: [...prev.notes, notePoint],
-        }))
+        setPendingNotePoint(point)
+        setNoteDraft('')
       }
 
       if (drawModeRef.current === 'trendline') {
@@ -692,28 +761,30 @@ export default function StockChart({
           return
         }
 
-        const trendline: TrendlineAnnotation = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        const payload = {
           start: trendlineStartRef.current,
           end: point,
           color: '#60a5fa',
         }
-
-        setAnnotations((prev) => ({
-          ...prev,
-          trendlines: [...prev.trendlines, trendline],
-        }))
-        setTrendlineStart(null)
+        void createAnnotation('trendline', payload).then((saved) => {
+          if (!saved) return
+          const trendline: TrendlineAnnotation = { ...payload, id: String(saved.id) }
+          setAnnotations((prev) => ({
+            ...prev,
+            trendlines: [...prev.trendlines, trendline],
+          }))
+          setTrendlineStart(null)
+        })
       }
     }
 
-    const updateNotes = () => updateNotePositionsRef.current()
+    const updateNotes = () => updateOverlayPositionsRef.current()
     chart.subscribeClick(onClick)
     chart.subscribeCrosshairMove(updateNotes)
     chart.timeScale().subscribeVisibleLogicalRangeChange(updateNotes)
 
     const resizeObserver = new ResizeObserver(() => {
-      updateNotePositionsRef.current()
+      updateOverlayPositionsRef.current()
     })
     resizeObserver.observe(chartContainer)
     resizeObserverRef.current = resizeObserver
@@ -838,9 +909,12 @@ export default function StockChart({
     }
   }, [indicatorLines])
 
-  updateNotePositionsRef.current = () => {
+  updateOverlayPositionsRef.current = () => {
     if (!chartRef.current || !mainSeriesRef.current) {
       setNotePositions((prev) => (prev.length === 0 ? prev : []))
+      setMarkerControlPositions((prev) => (prev.length === 0 ? prev : []))
+      setTrendlineControlPositions((prev) => (prev.length === 0 ? prev : []))
+      setPendingNotePosition(null)
       return
     }
 
@@ -872,27 +946,135 @@ export default function StockChart({
 
       return prev
     })
+
+    const nextMarkerControls: MarkerControlPosition[] = annotationsRef.current.markers.flatMap((marker) => {
+      const left = chartRef.current?.timeScale().timeToCoordinate(asUtcTimestamp(marker.time))
+      const top = mainSeriesRef.current?.priceToCoordinate(marker.price)
+      if (left == null || top == null) return []
+      return [{ id: marker.id, left, top }]
+    })
+    setMarkerControlPositions(nextMarkerControls)
+
+    const nextTrendlineControls: TrendlineControlPosition[] = annotationsRef.current.trendlines.flatMap((line) => {
+      const leftA = chartRef.current?.timeScale().timeToCoordinate(asUtcTimestamp(line.start.time))
+      const topA = mainSeriesRef.current?.priceToCoordinate(line.start.price)
+      const leftB = chartRef.current?.timeScale().timeToCoordinate(asUtcTimestamp(line.end.time))
+      const topB = mainSeriesRef.current?.priceToCoordinate(line.end.price)
+      if (leftA == null || topA == null || leftB == null || topB == null) return []
+      return [{
+        id: line.id,
+        left: (leftA + leftB) / 2,
+        top: (topA + topB) / 2,
+      }]
+    })
+    setTrendlineControlPositions(nextTrendlineControls)
+
+    if (pendingNotePoint) {
+      const left = chartRef.current?.timeScale().timeToCoordinate(asUtcTimestamp(pendingNotePoint.time))
+      const top = mainSeriesRef.current?.priceToCoordinate(pendingNotePoint.price)
+      if (left == null || top == null) setPendingNotePosition(null)
+      else setPendingNotePosition({ left, top })
+    } else {
+      setPendingNotePosition(null)
+    }
   }
 
   useEffect(() => {
-    updateNotePositionsRef.current()
-  }, [annotations.notes, chartType, lineLikeData, ohlcData])
+    updateOverlayPositionsRef.current()
+  }, [annotations.markers, annotations.notes, annotations.trendlines, chartType, lineLikeData, ohlcData, pendingNotePoint])
 
   useEffect(() => {
     setSelectedCandle(null)
   }, [stock.symbol, timeframe])
 
-  function clearAnnotations() {
-    setAnnotations(EMPTY_ANNOTATIONS)
-    setTrendlineStart(null)
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(buildStorageKey(stock.symbol))
+  async function clearAnnotations() {
+    setAnnotationsError('')
+    try {
+      const res = await fetch('/api/annotations', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: stock.symbol }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAnnotationsError(data?.error ?? 'Failed to clear annotations.')
+        return
+      }
+      setAnnotations(EMPTY_ANNOTATIONS)
+    } catch {
+      setAnnotationsError('Failed to clear annotations.')
+      return
     }
+
+    setTrendlineStart(null)
+    setPendingNotePoint(null)
+    setNoteDraft('')
+    setPendingNotePosition(null)
   }
 
   function activateMode(mode: Exclude<DrawMode, 'none'>) {
     if (!isFullscreen) return
+    if (autoRefreshEnabled) setAutoRefreshEnabled(false)
     setDrawMode(mode)
+  }
+
+  async function saveNoteAtPendingPoint() {
+    if (!pendingNotePoint || !noteDraft.trim()) return
+    const payload = {
+      time: pendingNotePoint.time,
+      price: pendingNotePoint.price,
+      text: noteDraft.trim(),
+      fontSize: 12,
+    }
+    const saved = await createAnnotation('note', payload)
+    if (!saved) return
+    const note: NoteAnnotation = { ...payload, id: String(saved.id) }
+    setAnnotations((prev) => ({
+      ...prev,
+      notes: [...prev.notes, note],
+    }))
+    setPendingNotePoint(null)
+    setNoteDraft('')
+    setPendingNotePosition(null)
+    setDrawMode('none')
+  }
+
+  async function updateNote(id: string, patch: Partial<Pick<NoteAnnotation, 'text' | 'fontSize'>>) {
+    const current = annotations.notes.find((n) => n.id === id)
+    if (!current) return
+    const payload = {
+      time: current.time,
+      price: current.price,
+      text: patch.text ?? current.text,
+      fontSize: Math.min(24, Math.max(10, patch.fontSize ?? current.fontSize ?? 12)),
+    }
+    const updated = await updateAnnotation(id, payload)
+    if (!updated) return
+
+    setAnnotations((prev) => ({
+      ...prev,
+      notes: prev.notes.map((n) => (n.id === id ? { ...n, ...payload } : n)),
+    }))
+  }
+
+  async function removeAnnotation(kind: AnnotationKind, id: string) {
+    const ok = await deleteAnnotation(id)
+    if (!ok) return
+
+    setAnnotations((prev) => {
+      if (kind === 'trendline') return { ...prev, trendlines: prev.trendlines.filter((item) => item.id !== id) }
+      if (kind === 'marker') return { ...prev, markers: prev.markers.filter((item) => item.id !== id) }
+      return { ...prev, notes: prev.notes.filter((item) => item.id !== id) }
+    })
+  }
+
+  function resumeLiveUpdates() {
+    setDrawMode('none')
+    setTrendlineStart(null)
+    setPendingNotePoint(null)
+    setNoteDraft('')
+    setPendingNotePosition(null)
+    setAutoRefreshEnabled(true)
   }
 
   function toggleIndicator(key: IndicatorKey) {
@@ -919,7 +1101,7 @@ export default function StockChart({
             <button
               type="button"
               className={styles.resumeBtn}
-              onClick={() => setAutoRefreshEnabled(true)}
+              onClick={resumeLiveUpdates}
             >
               Continue Live Updates
             </button>
@@ -1038,8 +1220,8 @@ export default function StockChart({
           </div>
         </div>
 
-        <button type="button" className={styles.clearBtn} onClick={clearAnnotations}>
-          Clear Local Annotations
+        <button type="button" className={styles.clearBtn} onClick={() => void clearAnnotations()}>
+          Clear All Annotations
         </button>
       </div>
 
@@ -1050,6 +1232,12 @@ export default function StockChart({
             ? 'TRENDLINE: CHOOSE SECOND POINT'
             : `TF: ${timeframe.toUpperCase()} | MODE: ${drawMode.toUpperCase()}${autoRefreshEnabled ? '' : ' (LIVE UPDATES PAUSED)'}`}
       </div>
+
+      {(annotationsLoading || annotationsError) && (
+        <div className={styles.statusBar}>
+          {annotationsLoading ? 'Loading annotations...' : annotationsError}
+        </div>
+      )}
 
       {indicatorLines.length > 0 && (
         <div className={styles.indicatorLegend}>
@@ -1097,19 +1285,104 @@ export default function StockChart({
         </div>
         {oscillatorIndicatorLines.length > 0 && <div className={styles.oscillatorBadge}>OSCILLATOR PANE</div>}
         <div className={styles.noteLayer}>
+          {trendlineControlPositions.map((item) => (
+            <button
+              key={`trendline-del-${item.id}`}
+              type="button"
+              className={styles.onChartDelete}
+              style={{ left: item.left, top: item.top }}
+              onClick={() => void removeAnnotation('trendline', item.id)}
+              title="Delete trendline"
+            >
+              x
+            </button>
+          ))}
+          {markerControlPositions.map((item) => (
+            <button
+              key={`marker-del-${item.id}`}
+              type="button"
+              className={styles.onChartDelete}
+              style={{ left: item.left + 8, top: item.top - 8 }}
+              onClick={() => void removeAnnotation('marker', item.id)}
+              title="Delete marker"
+            >
+              x
+            </button>
+          ))}
           {notePositions.map((note) => (
             <div
-              key={note.id}
-              className={styles.notePin}
-              style={{ left: note.left + 8, top: note.top - 8 }}
-              title={note.text}
+              key={`${note.id}-${note.text}-${note.fontSize ?? 12}`}
+              className={styles.noteCard}
+              style={{ left: note.left + 10, top: note.top - 10 }}
             >
-              N
-              <div className={styles.noteTooltip}>{note.text}</div>
+              <textarea
+                className={styles.noteTextArea}
+                style={{ fontSize: `${note.fontSize ?? 12}px` }}
+                defaultValue={note.text}
+                onBlur={(e) => {
+                  const nextText = e.target.value.trim()
+                  if (nextText && nextText !== note.text) {
+                    void updateNote(note.id, { text: nextText })
+                  }
+                }}
+              />
+              <div className={styles.noteCardActions}>
+                <button
+                  type="button"
+                  className={styles.noteActionBtn}
+                  onClick={() => void updateNote(note.id, { fontSize: (note.fontSize ?? 12) - 1 })}
+                  title="Smaller text"
+                >
+                  A-
+                </button>
+                <button
+                  type="button"
+                  className={styles.noteActionBtn}
+                  onClick={() => void updateNote(note.id, { fontSize: (note.fontSize ?? 12) + 1 })}
+                  title="Larger text"
+                >
+                  A+
+                </button>
+                <button
+                  type="button"
+                  className={styles.noteActionBtn}
+                  onClick={() => void removeAnnotation('note', note.id)}
+                  title="Delete note"
+                >
+                  x
+                </button>
+              </div>
             </div>
           ))}
+          {pendingNotePoint && pendingNotePosition && (
+            <div className={styles.pendingNoteCard} style={{ left: pendingNotePosition.left + 10, top: pendingNotePosition.top - 10 }}>
+              <textarea
+                className={styles.noteTextArea}
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Write note text..."
+              />
+              <div className={styles.noteCardActions}>
+                <button type="button" className={styles.noteActionBtn} onClick={() => void saveNoteAtPendingPoint()}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.noteActionBtn}
+                  onClick={() => {
+                    setPendingNotePoint(null)
+                    setPendingNotePosition(null)
+                    setNoteDraft('')
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
+

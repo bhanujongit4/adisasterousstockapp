@@ -194,16 +194,7 @@ export default function Home() {
     const symbol = manualSymbol.trim().toUpperCase()
     if (!symbol) return
 
-    setWatchlistError('')
-    const lookupRes = await fetch(`/api/symbols/lookup?symbol=${encodeURIComponent(symbol)}`)
-    const lookupData = await lookupRes.json()
-
-    if (!lookupData?.found) {
-      setWatchlistError(lookupData?.message ?? `No match found for ${symbol}.`)
-      return
-    }
-
-    await addSymbol(lookupData.symbol)
+    await addSymbol(symbol)
   }
 
   if (sessionChecking || (user && loading && stocks.length === 0)) {
