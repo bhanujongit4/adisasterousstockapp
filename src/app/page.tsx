@@ -1,116 +1,128 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Activity, LogOut, Moon, RefreshCw, Sun, TrendingDown, TrendingUp } from 'lucide-react'
-import { StockChoice, StockQuote } from './lib/stockData'
-import { useStockData } from './hooks/useStockData'
-import MarketTicker from './components/MarketTicker'
-import WatchlistPanel from './components/WatchlistPanel'
-import StockChart from './components/StockChart'
-import MarketStats from './components/MarketStats'
-import styles from './Page.module.css'
+import { FormEvent, useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import styles from './Home.module.css'
 
-type User = { id: number; email: string }
+const TICKERS = [
+  { sym: 'AAPL',  price: '213.49',   change: '+1.24', up: true },
+  { sym: 'NVDA',  price: '137.62',   change: '+3.87', up: true },
+  { sym: 'TSLA',  price: '248.50',   change: '-4.12', up: false },
+  { sym: 'MSFT',  price: '421.90',   change: '+0.78', up: true },
+  { sym: 'GOOG',  price: '178.25',   change: '+2.11', up: true },
+  { sym: 'AMZN',  price: '224.18',   change: '-1.03', up: false },
+  { sym: 'META',  price: '623.44',   change: '+5.33', up: true },
+  { sym: 'BRK.B', price: '472.90',   change: '+0.22', up: true },
+  { sym: 'JPM',   price: '257.11',   change: '-0.89', up: false },
+  { sym: 'V',     price: '340.67',   change: '+1.55', up: true },
+  { sym: 'SPY',   price: '591.80',   change: '+0.47', up: true },
+  { sym: 'QQQ',   price: '510.33',   change: '+1.02', up: true },
+  { sym: 'GLD',   price: '238.45',   change: '-0.31', up: false },
+  { sym: 'BTC',   price: '103,240',  change: '+2.88', up: true },
+  { sym: 'ETH',   price: '3,412',    change: '-1.14', up: false },
+]
 
-type WatchlistResponse = {
-  symbols: string[]
-  available: StockChoice[]
-  limit: number
+const FEATURES = [
+  { icon: '◈', title: 'Live Market Stream',    desc: 'Real-time quotes filtered to only your watchlist. Zero noise, pure signal.' },
+  { icon: '⬡', title: 'Smart Watchlists',      desc: 'Build, organize, and share symbol lists with custom alerts and price targets.' },
+  { icon: '⌖', title: 'Chart Annotations',     desc: 'Draw trendlines, place markers, and attach timestamped notes per symbol.' },
+  { icon: '⊞', title: 'Portfolio Analytics',   desc: 'P&L tracking, sector exposure, and performance attribution in one view.' },
+]
+
+function Sparkline({ up }: { up: boolean }) {
+  const pts = Array.from({ length: 12 }, (_, i) => {
+    const noise = (Math.sin(i * 2.3 + (up ? 1 : 3)) + Math.random() * 0.6) * 18
+    return `${i * 18},${40 - (up ? noise : -noise)}`
+  }).join(' ')
+  const color = up ? '#00ff80' : '#ff4d6a'
+  return (
+    <svg width="100" height="40" viewBox="0 0 198 60" fill="none" style={{ display: 'block' }}>
+      <polyline
+        points={pts}
+        stroke={color}
+        strokeWidth="2.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 export default function Home() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-
+  const router = useRouter()
   const [sessionChecking, setSessionChecking] = useState(true)
-  const [user, setUser] = useState<User | null>(null)
-
-  const [watchlistSymbols, setWatchlistSymbols] = useState<string[]>([])
-  const [watchlistLimit, setWatchlistLimit] = useState(10)
-  const [availableStocks, setAvailableStocks] = useState<StockChoice[]>([])
-  const [pendingTop32, setPendingTop32] = useState('')
-  const [manualSymbol, setManualSymbol] = useState('')
-  const [watchlistError, setWatchlistError] = useState('')
-
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
-
-  const {
-    stocks,
-    loading,
-    lastUpdated,
-    selectedSymbol,
-    setSelectedSymbol,
-    selectedStock,
-    refresh,
-    autoRefreshEnabled,
-    setAutoRefreshEnabled,
-    timeframe,
-    setTimeframe,
-  } = useStockData({ symbols: watchlistSymbols, enabled: Boolean(user) })
-
-  const gainers = [...stocks].sort((a, b) => b.changePercent - a.changePercent).slice(0, 3)
-  const losers = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
-
-  const addableTop32 = useMemo(
-    () => availableStocks.filter((s) => !watchlistSymbols.includes(s.symbol)),
-    [availableStocks, watchlistSymbols],
-  )
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [mounted, setMounted] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (typeof document === 'undefined') return
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
-
-  useEffect(() => {
+    setMounted(true)
     let cancelled = false
-
     const init = async () => {
       try {
         const res = await fetch('/api/auth/session')
         if (!res.ok) return
-
         const data = await res.json()
-        if (cancelled || !data?.user) return
-
-        setUser(data.user)
-        await loadWatchlist()
+        if (!cancelled && data?.user) { router.replace('/dashboard'); return }
       } finally {
         if (!cancelled) setSessionChecking(false)
       }
     }
-
     init()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    return () => { cancelled = true }
+  }, [router])
 
   useEffect(() => {
-    if (!pendingTop32 && addableTop32.length > 0) {
-      setPendingTop32(addableTop32[0].symbol)
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    let animId: number
+    let t = 0
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight }
+    resize()
+    window.addEventListener('resize', resize)
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const isDark = theme === 'dark'
+      const lineColor = isDark ? 'rgba(0,255,128,0.045)' : 'rgba(0,100,60,0.06)'
+      const glowColor = isDark ? 'rgba(0,255,128,0.18)'  : 'rgba(0,160,80,0.18)'
+      ctx.strokeStyle = lineColor
+      ctx.lineWidth = 1
+      const gs = 48
+      for (let x = 0; x < canvas.width;  x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke() }
+      for (let y = 0; y < canvas.height; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke() }
+      ctx.strokeStyle = glowColor
+      ctx.lineWidth = 2.5
+      ctx.shadowBlur = 12
+      ctx.shadowColor = glowColor
+      ctx.beginPath()
+      for (let x = 0; x <= canvas.width; x += 2) {
+        const y = canvas.height * 0.55
+          + Math.sin(x * 0.012 + t) * 40
+          + Math.sin(x * 0.03  + t * 1.4) * 18
+          + Math.cos(x * 0.007 + t * 0.7) * 28
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+      ctx.shadowBlur = 0
+      t += 0.008
+      animId = requestAnimationFrame(draw)
     }
-  }, [addableTop32, pendingTop32])
+    draw()
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize) }
+  }, [theme])
 
-  async function loadWatchlist() {
-    const res = await fetch('/api/watchlist')
-    if (!res.ok) return
-
-    const data = (await res.json()) as WatchlistResponse
-    setWatchlistSymbols(data.symbols)
-    setAvailableStocks(data.available)
-    setWatchlistLimit(data.limit)
-    setWatchlistError('')
-  }
-
-  async function handleAuthSubmit(e: React.FormEvent) {
+  async function handleAuthSubmit(e: FormEvent) {
     e.preventDefault()
     setAuthBusy(true)
     setAuthError('')
-
     try {
       const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login'
       const res = await fetch(endpoint, {
@@ -118,351 +130,200 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-
       const data = await res.json()
-      if (!res.ok) {
-        setAuthError(data?.error ?? 'Authentication failed.')
-        return
-      }
-
-      setUser(data.user)
+      if (!res.ok) { setAuthError(data?.error ?? 'Authentication failed.'); return }
       setPassword('')
-      await loadWatchlist()
+      router.push('/dashboard')
     } catch {
       setAuthError('Authentication failed.')
     } finally {
       setAuthBusy(false)
-      setSessionChecking(false)
     }
   }
 
-  async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    setUser(null)
-    setWatchlistSymbols([])
-    setAvailableStocks([])
-    setPendingTop32('')
-    setManualSymbol('')
-    setWatchlistError('')
-  }
-
-  async function addSymbol(symbolRaw: string) {
-    const symbol = symbolRaw.trim().toUpperCase()
-    if (!symbol) return
-
-    setWatchlistError('')
-    const res = await fetch('/api/watchlist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol }),
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      setWatchlistError(data?.error ?? 'Could not add symbol.')
-      return
-    }
-
-    const next = data as WatchlistResponse
-    setWatchlistSymbols(next.symbols)
-    setAvailableStocks(next.available)
-    setWatchlistLimit(next.limit)
-    setManualSymbol('')
-  }
-
-  async function removeSymbol(symbol: string) {
-    setWatchlistError('')
-    const res = await fetch('/api/watchlist', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol }),
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      setWatchlistError(data?.error ?? 'Could not remove symbol.')
-      return
-    }
-
-    const next = data as WatchlistResponse
-    setWatchlistSymbols(next.symbols)
-    setAvailableStocks(next.available)
-    setWatchlistLimit(next.limit)
-  }
-
-  async function handleManualAdd() {
-    const symbol = manualSymbol.trim().toUpperCase()
-    if (!symbol) return
-
-    await addSymbol(symbol)
-  }
-
-  if (sessionChecking || (user && loading && stocks.length === 0)) {
+  if (sessionChecking || !mounted) {
     return (
       <div className={styles.loading}>
-        <div className={styles.loadingDot} />
-        <span>INITIALIZING TERMINAL</span>
+        <div className={styles.loadingRing} />
+        <span>INITIALIZING MKTS</span>
       </div>
     )
   }
 
-  if (!user) {
-    return (
-      <div className={styles.authShell}>
-        <form className={styles.authCard} onSubmit={handleAuthSubmit}>
-          <div className={styles.authHeader}>MKTS TERMINAL</div>
-          <div className={styles.authSub}>Use Neon-backed account auth to load your private watchlist.</div>
-
-          <label className={styles.authLabel}>Email</label>
-          <input
-            className={styles.authInput}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            autoComplete="email"
-            required
-          />
-
-          <label className={styles.authLabel}>Password</label>
-          <input
-            className={styles.authInput}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            type="password"
-            autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-            required
-          />
-
-          {authError && <div className={styles.authError}>{authError}</div>}
-
-          <button className={styles.authPrimary} type="submit" disabled={authBusy}>
-            {authBusy ? 'Please wait...' : authMode === 'signup' ? 'Create Account' : 'Login'}
-          </button>
-
-          <button
-            className={styles.authSwitch}
-            type="button"
-            onClick={() => {
-              setAuthMode((prev) => (prev === 'login' ? 'signup' : 'login'))
-              setAuthError('')
-            }}
-          >
-            {authMode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login'}
-          </button>
-        </form>
-      </div>
-    )
-  }
+  // Compose root class — apply both .root (always) and .rootLight (when light)
+  const rootClass = theme === 'light'
+    ? `${styles.root} ${styles.rootLight}`
+    : styles.root
 
   return (
-    <div className={styles.root}>
-      <header className={styles.nav}>
-        <div className={styles.logo}>
-          <Activity size={16} strokeWidth={2.5} color="var(--green)" />
-          <span className={styles.logoText}>MKTS</span>
-          <span className={styles.logoBadge}>TERMINAL</span>
+    <div className={rootClass}>
+      <canvas ref={canvasRef} className={styles.bgCanvas} />
+
+      {/* Nav */}
+      <nav className={styles.nav}>
+        <div className={styles.navLogo}>
+          <span className={styles.navLogoMark}>▲</span>
+          <span className={styles.navLogoText}>MKTS</span>
+          <span className={styles.navLogoBadge}>TERMINAL</span>
         </div>
-        <div className={styles.navMeta}>
-          <span className={styles.metaItem}>{user.email}</span>
-          <span className={styles.metaItem}>
-            <span className={styles.metaDot} />
-            LIVE DATA
-          </span>
-          {lastUpdated && (
-            <span className={styles.metaItem}>
-              UPDATED {lastUpdated.toLocaleTimeString('en-US', { hour12: false })}
+        <div className={styles.navRight}>
+          <button
+            className={styles.themeToggle}
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? '◑' : '◐'}
+          </button>
+        </div>
+      </nav>
+
+      {/* Ticker tape */}
+      <div className={styles.tickerWrap}>
+        <div className={styles.tickerTrack}>
+          {[...TICKERS, ...TICKERS].map((t, i) => (
+            <span key={i} className={styles.tickerItem}>
+              <span className={styles.tickerSym}>{t.sym}</span>
+              <span className={styles.tickerPrice}>{t.price}</span>
+              <span className={`${styles.tickerChange} ${t.up ? styles.tickerUp : styles.tickerDown}`}>
+                {t.change}%
+              </span>
             </span>
-          )}
-          <button className={styles.refreshBtn} onClick={refresh} title="Refresh">
-            <RefreshCw size={13} />
-          </button>
-          <button
-            className={styles.themeBtn}
-            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to white mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-          </button>
-          <button className={styles.themeBtn} onClick={handleLogout} title="Logout">
-            <LogOut size={13} />
-          </button>
+          ))}
         </div>
-      </header>
+      </div>
 
-      <MarketTicker stocks={stocks} />
+      {/* Hero */}
+      <main className={styles.hero}>
+        <div className={styles.heroLeft}>
+          <div className={styles.heroEyebrow}>
+            <span className={styles.eyebrowDot} />
+            LIVE MARKETS · REAL-TIME DATA
+          </div>
+          <h1 className={styles.heroHeadline}>
+            Trade with<br />
+            <span className={styles.heroAccent}>terminal</span><br />
+            precision.
+          </h1>
+          <p className={styles.heroCopy}>
+            Stream only your symbols. Annotate every chart. Build the workspace serious traders actually need.
+          </p>
 
-      <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <div className={styles.watchlistManager}>
-            <div className={styles.managerHead}>MY WATCHLIST ({watchlistSymbols.length}/{watchlistLimit})</div>
-
-            <div className={styles.managerRow}>
-              <select
-                className={styles.managerSelect}
-                value={pendingTop32}
-                onChange={(e) => setPendingTop32(e.target.value)}
-                disabled={addableTop32.length === 0 || watchlistSymbols.length >= watchlistLimit}
-              >
-                {addableTop32.length === 0 && <option value="">No top-32 symbols left</option>}
-                {addableTop32.map((s) => (
-                  <option key={s.symbol} value={s.symbol}>
-                    {s.symbol} - {s.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className={styles.managerBtn}
-                onClick={() => pendingTop32 && addSymbol(pendingTop32)}
-                disabled={!pendingTop32 || watchlistSymbols.length >= watchlistLimit}
-              >
-                Add
-              </button>
+          <div className={styles.statsRow}>
+            <div className={styles.statItem}>
+              <span className={styles.statNum}>2.4ms</span>
+              <span className={styles.statLabel}>avg latency</span>
             </div>
-
-            <div className={styles.managerRow}>
-              <input
-                className={styles.managerInput}
-                value={manualSymbol}
-                onChange={(e) => setManualSymbol(e.target.value.toUpperCase())}
-                placeholder="Type symbol (ex: IBM)"
-                maxLength={12}
-              />
-              <button
-                className={styles.managerBtn}
-                onClick={handleManualAdd}
-                disabled={watchlistSymbols.length >= watchlistLimit}
-              >
-                Find + Add
-              </button>
+            <div className={styles.statDivider} />
+            <div className={styles.statItem}>
+              <span className={styles.statNum}>18k+</span>
+              <span className={styles.statLabel}>symbols tracked</span>
             </div>
-
-            {watchlistError && <div className={styles.watchlistError}>{watchlistError}</div>}
-
-            <div className={styles.symbolPills}>
-              {watchlistSymbols.map((symbol) => (
-                <button key={symbol} className={styles.symbolPill} onClick={() => removeSymbol(symbol)} title="Remove from watchlist">
-                  {symbol} x
-                </button>
-              ))}
+            <div className={styles.statDivider} />
+            <div className={styles.statItem}>
+              <span className={styles.statNum}>99.9%</span>
+              <span className={styles.statLabel}>uptime</span>
             </div>
           </div>
 
-          <WatchlistPanel stocks={stocks} selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} />
-        </aside>
-
-        <main className={styles.center}>
-          {watchlistSymbols.length === 0 ? (
-            <div className={styles.emptyState}>Add symbols to your watchlist to start live updates.</div>
-          ) : (
-            selectedStock && (
-              <>
-                <MarketStats stock={selectedStock} />
-                <div className={styles.chartArea}>
-                  <div className={styles.chartHeader}>
-                    <span className={styles.chartLabel}>
-                      {selectedStock.symbol} - {timeframe.toUpperCase()} VIEW
-                    </span>
-                    <span className={styles.chartSub}>PREV CLOSE: ${selectedStock.prevClose.toFixed(2)}</span>
-                  </div>
-                  <div className={styles.chartBody}>
-                    <StockChart
-                      stock={selectedStock}
-                      autoRefreshEnabled={autoRefreshEnabled}
-                      setAutoRefreshEnabled={setAutoRefreshEnabled}
-                      timeframe={timeframe}
-                      setTimeframe={setTimeframe}
-                      theme={theme}
-                    />
-                  </div>
+          <div className={styles.chartCards}>
+            {TICKERS.slice(0, 3).map((t) => (
+              <div key={t.sym} className={styles.chartCard}>
+                <div className={styles.chartCardTop}>
+                  <span className={styles.chartCardSym}>{t.sym}</span>
+                  <span className={`${styles.chartCardChange} ${t.up ? styles.chartCardUp : styles.chartCardDown}`}>
+                    {t.change}%
+                  </span>
                 </div>
-              </>
-            )
-          )}
-        </main>
-
-        <aside className={styles.rightPanel}>
-          <MoverList title="TOP GAINERS" stocks={gainers} type="up" onSelect={setSelectedSymbol} />
-          <MoverList title="TOP LOSERS" stocks={losers} type="down" onSelect={setSelectedSymbol} />
-          <MarketSummary stocks={stocks} />
-        </aside>
-      </div>
-    </div>
-  )
-}
-
-function MoverList({
-  title,
-  stocks,
-  type,
-  onSelect,
-}: {
-  title: string
-  stocks: StockQuote[]
-  type: 'up' | 'down'
-  onSelect: (s: string) => void
-}) {
-  const color = type === 'up' ? 'var(--green)' : 'var(--red)'
-  const Icon = type === 'up' ? TrendingUp : TrendingDown
-
-  return (
-    <div className={styles.moverBlock}>
-      <div className={styles.moverHeader}>
-        <Icon size={12} color={color} />
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>{title}</span>
-      </div>
-      {stocks.map((s) => (
-        <button key={s.symbol} className={styles.moverItem} onClick={() => onSelect(s.symbol)}>
-          <span className={styles.moverSym}>{s.symbol}</span>
-          <div className={styles.moverBar}>
-            <div
-              className={styles.moverFill}
-              style={{
-                width: `${Math.min(100, Math.abs(s.changePercent) * 20)}%`,
-                background: color,
-              }}
-            />
+                <Sparkline up={t.up} />
+                <span className={styles.chartCardPrice}>${t.price}</span>
+              </div>
+            ))}
           </div>
-          <span className={`num ${styles.moverPct}`} style={{ color }}>
-            {type === 'up' ? '+' : ''}
-            {s.changePercent.toFixed(2)}%
-          </span>
-        </button>
-      ))}
-    </div>
-  )
-}
+        </div>
 
-function MarketSummary({ stocks }: { stocks: StockQuote[] }) {
-  const up = stocks.filter((s) => s.changePercent > 0).length
-  const down = stocks.filter((s) => s.changePercent < 0).length
-  const flat = stocks.length - up - down
-  const pctUp = stocks.length > 0 ? ((up / stocks.length) * 100).toFixed(0) : '0'
+        {/* Auth */}
+        <div className={styles.authWrap}>
+          <div className={styles.authGlow} />
+          <form className={styles.authCard} onSubmit={handleAuthSubmit}>
+            <div className={styles.authTopBar}>
+              <span className={styles.authDotRed} />
+              <span className={styles.authDotYellow} />
+              <span className={styles.authDotGreen} />
+            </div>
 
-  return (
-    <div className={styles.moverBlock}>
-      <div className={styles.moverHeader}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
-          MARKET BREADTH
-        </span>
-      </div>
-      <div className={styles.breadthBar}>
-        <div className={styles.breadthUp} style={{ flex: up }} title={`${up} advancing`} />
-        <div className={styles.breadthFlat} style={{ flex: flat }} />
-        <div className={styles.breadthDown} style={{ flex: down }} title={`${down} declining`} />
-      </div>
-      <div className={styles.breadthLabels}>
-        <span className="num" style={{ color: 'var(--green)', fontSize: 11 }}>
-          UP {up}
-        </span>
-        <span className="num" style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-          {pctUp}% advancing
-        </span>
-        <span className="num" style={{ color: 'var(--red)', fontSize: 11 }}>
-          DOWN {down}
-        </span>
-      </div>
+            <div className={styles.authTitle}>
+              {authMode === 'login' ? 'Welcome back' : 'Create account'}
+            </div>
+            <div className={styles.authSub}>
+              {authMode === 'login'
+                ? 'Sign in to your MKTS Terminal.'
+                : 'Join thousands of traders on MKTS.'}
+            </div>
+
+            <div className={styles.authField}>
+              <label className={styles.authLabel}>EMAIL</label>
+              <input
+                className={styles.authInput}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <div className={styles.authField}>
+              <label className={styles.authLabel}>PASSWORD</label>
+              <input
+                className={styles.authInput}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                type="password"
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                required
+              />
+            </div>
+
+            {authError && <div className={styles.authError}>{authError}</div>}
+
+            <button className={styles.authPrimary} type="submit" disabled={authBusy}>
+              {authBusy
+                ? 'Please wait...'
+                : authMode === 'signup'
+                ? '→ Create Account'
+                : '→ Enter Terminal'}
+            </button>
+
+            <button
+              className={styles.authSwitch}
+              type="button"
+              onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError('') }}
+            >
+              {authMode === 'login' ? 'New here? Sign up free' : 'Have an account? Login'}
+            </button>
+          </form>
+        </div>
+      </main>
+
+      {/* Features */}
+      <section className={styles.features}>
+        {FEATURES.map((f) => (
+          <div key={f.title} className={styles.featureCard}>
+            <span className={styles.featureIcon}>{f.icon}</span>
+            <div className={styles.featureTitle}>{f.title}</div>
+            <div className={styles.featureDesc}>{f.desc}</div>
+          </div>
+        ))}
+      </section>
+
+      {/* Footer */}
+      <footer className={styles.footer}>
+        <span>© 2025 MKTS Terminal</span>
+        <span className={styles.footerDot}>·</span>
+        <span>Markets data is 15 min delayed for display purposes</span>
+      </footer>
     </div>
   )
 }
