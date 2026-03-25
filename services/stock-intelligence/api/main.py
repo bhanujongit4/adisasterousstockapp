@@ -24,6 +24,7 @@ import traceback
 from utils.data_fetcher import fetch_multi_timeframe, get_latest_price
 from models.regime_detector import classify_regime, HMMRegimeDetector
 from models.microstructure import estimate_congestion
+from models.anomalydetecion import AnomalyDetector
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -85,6 +86,20 @@ class SignalResponse(BaseModel):
     timestamp:    str
 
 
+class AnomalyResponse(BaseModel):
+    ticker: str
+    timeframe: str
+    latest_timestamp: int
+    latest_price: float
+    severity: str
+    composite_score: float
+    anomaly_note: str
+    engine_scores: dict
+    top_features: list
+    components: dict
+    recent_markers: list
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _trading_note(regime: str, latency: str, congestion: float, confidence: float) -> str:
@@ -125,7 +140,8 @@ def health():
 @app.get("/api/regime/{ticker}", response_model=RegimeResponse)
 def get_regime(
     ticker: str,
-    refit_hmm: bool = Query(False, description="Force refit HMM (slower but fresh)")
+    refit_hmm: bool = Query(False, description="Force refit HMM (slower but fresh)"),
+    timeframe: str = Query("1h", description="Intraday regime timeframe: 5m, 15m, 1h"),
 ):
     """
     Returns the current market regime for a stock.
@@ -138,7 +154,10 @@ def get_regime(
         raise HTTPException(status_code=400, detail=f"Data fetch failed: {str(e)}")
 
     df_daily = data.get("1d")
-    df_intraday = data.get("1h")
+    tf = timeframe if timeframe in ("5m", "15m", "1h") else "1h"
+    df_intraday = data.get(tf)
+    if df_intraday is None:
+        df_intraday = data.get("1h")
     if df_intraday is None:
         df_intraday = data.get("15m")
 
@@ -199,6 +218,96 @@ def get_microstructure(
     result.pop("series", None)
 
     return MicrostructureResponse(ticker=ticker, **result)
+
+
+def _feature_plain_english(name: str) -> str:
+    mapping = {
+        "body_pct": "candle body expansion",
+        "upper_wick_pct": "upper-wick rejection pressure",
+        "lower_wick_pct": "lower-wick absorption",
+        "vwap_deviation": "distance from VWAP benchmark",
+        "vol_ratio": "volume surge versus normal",
+        "log_return": "abrupt directional return",
+        "abs_return": "unusually large bar move",
+        "price_range_pct": "intrabar volatility expansion",
+        "vol_price_corr": "return-volume coupling shift",
+    }
+    return mapping.get(name, name)
+
+
+def _anomaly_so_what(severity: str, top_features: list, percentile: float) -> str:
+    lead = {
+        "CRITICAL": "Statistically extreme bar: institutional activity footprint is likely.",
+        "WARNING": "Strong anomaly: this bar is uncommon and may signal a local regime shift.",
+        "WATCH": "Mild anomaly: watch follow-through before taking conviction.",
+        "NORMAL": "No statistical anomaly: bar behavior is within normal profile.",
+    }.get(severity, "Anomaly score computed.")
+
+    drivers = ", ".join(_feature_plain_english(str(item[0])) for item in top_features[:3]) if top_features else "no dominant driver"
+    pct = f"{percentile * 100:.1f}%"
+    return f"{lead} Key drivers: {drivers}. This bar is more unusual than {pct} of recent history."
+
+
+@app.get("/api/anomaly/{ticker}", response_model=AnomalyResponse)
+def get_anomaly(
+    ticker: str,
+    timeframe: str = Query("15m", description="Anomaly timeframe: 5m, 15m, 1h, 1d"),
+    contamination: float = Query(0.02, ge=0.001, le=0.2, description="Expected outlier fraction"),
+):
+    """
+    Runs anomaly model (IsolationForest + rolling z-score + CUSUM) on selected timeframe.
+    """
+    ticker = ticker.upper()
+    if timeframe not in ("5m", "15m", "1h", "1d"):
+        raise HTTPException(status_code=400, detail="timeframe must be one of 5m, 15m, 1h, 1d")
+
+    try:
+        df = fetch_ohlcv_single(ticker, timeframe)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Data fetch failed: {str(e)}")
+
+    if df is None or len(df) < 60:
+        raise HTTPException(status_code=400, detail="Insufficient bars for anomaly model (need >= 60 bars).")
+
+    try:
+        detector = AnomalyDetector(contamination=contamination)
+        detector.fit(df)
+        result = detector.detect_latest(df)
+        sequence = detector.detect_sequence(df)
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Anomaly computation failed: {str(e)}")
+
+    latest_ts = int(df.index[-1].timestamp())
+    latest_price = float(df["Close"].iloc[-1])
+    score_percentile = float(result.get("components", {}).get("score_percentile", 0.0))
+    anomaly_note = _anomaly_so_what(result["severity"], result.get("top_features", []), score_percentile)
+
+    sequence_joined = sequence.join(df[["Close"]], how="left")
+    flagged = sequence_joined[sequence_joined["severity"] != "NORMAL"].tail(120)
+    recent_markers = [
+        {
+            "timestamp": int(idx.timestamp()),
+            "severity": str(row["severity"]),
+            "composite_score": round(float(row["composite"]), 4),
+            "price": round(float(row["Close"]), 4) if "Close" in row and row["Close"] == row["Close"] else None,
+        }
+        for idx, row in flagged.iterrows()
+    ]
+
+    return AnomalyResponse(
+        ticker=ticker,
+        timeframe=timeframe,
+        latest_timestamp=latest_ts,
+        latest_price=latest_price,
+        severity=result["severity"],
+        composite_score=result["composite_score"],
+        anomaly_note=anomaly_note,
+        engine_scores=result["engine_scores"],
+        top_features=result["top_features"],
+        components=result["components"],
+        recent_markers=recent_markers,
+    )
 
 
 @app.get("/api/signal/{ticker}", response_model=SignalResponse)

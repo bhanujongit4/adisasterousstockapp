@@ -55,6 +55,12 @@ interface Props {
   timeframe: ChartTimeframe
   setTimeframe: Dispatch<SetStateAction<ChartTimeframe>>
   theme: 'dark' | 'light'
+  anomalyMarkers?: Array<{
+    timestamp: number
+    severity: 'CRITICAL' | 'WARNING' | 'WATCH' | 'NORMAL'
+    composite_score: number
+    price?: number | null
+  }>
 }
 
 type ChartType = 'candlestick' | 'line' | 'area' | 'bar' | 'baseline'
@@ -186,6 +192,8 @@ interface HoverDetails {
   close: number
   volume: number
   indicatorValues: IndicatorValueSnapshot[]
+  anomalySeverity?: string
+  anomalyScore?: number
 }
 
 interface PaneOverlayState {
@@ -311,6 +319,7 @@ export default function StockChart({
   timeframe,
   setTimeframe,
   theme,
+  anomalyMarkers = [],
 }: Props) {
   const [chartType, setChartType] = useState<ChartType>('candlestick')
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
@@ -345,6 +354,7 @@ export default function StockChart({
   const candleLookupRef = useRef<Map<number, CandleDetails>>(new Map())
   const indicatorLinesRef = useRef<IndicatorLine[]>([])
   const updateOverlayPositionsRef = useRef<() => void>(() => {})
+  const anomalyByTimeRef = useRef<Map<number, { severity: string; score: number }>>(new Map())
   const paneFactorsByCountRef = useRef<Record<number, number[]>>({ ...DEFAULT_PANE_FACTORS })
   const lastPaneCountRef = useRef<number>(2)
 
@@ -488,6 +498,18 @@ export default function StockChart({
 
     return result
   }, [aggregatedHistory, selectedIndicators])
+
+  const anomalyByTime = useMemo(() => {
+    const map = new Map<number, { severity: string; score: number }>()
+    anomalyMarkers.forEach((m) => {
+      map.set(m.timestamp, { severity: m.severity, score: m.composite_score })
+    })
+    return map
+  }, [anomalyMarkers])
+
+  useEffect(() => {
+    anomalyByTimeRef.current = anomalyByTime
+  }, [anomalyByTime])
 
   async function loadAnnotations(symbol: string) {
     setAnnotationsLoading(true)
@@ -943,16 +965,18 @@ export default function StockChart({
         })
         .filter(Boolean) as IndicatorValueSnapshot[]
 
-      setHoverDetails({
-        timeLabel: candle.timeLabel,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-        volume: candle.volume,
-        indicatorValues: snapshots,
-      })
-    }
+        setHoverDetails({
+          timeLabel: candle.timeLabel,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          volume: candle.volume,
+          indicatorValues: snapshots,
+          anomalySeverity: anomalyByTimeRef.current.get(hoverTime)?.severity,
+          anomalyScore: anomalyByTimeRef.current.get(hoverTime)?.score,
+        })
+      }
     const onVisibleRangeChange = () => updateNotes()
     chart.subscribeClick(onClick)
     chart.subscribeCrosshairMove(updateNotes)
@@ -1012,6 +1036,24 @@ export default function StockChart({
   useEffect(() => {
     if (!markerPluginRef.current) return
 
+    const anomalySeriesMarkers: SeriesMarker<Time>[] = anomalyMarkers.map((marker, index) => {
+      const color = marker.severity === 'CRITICAL'
+        ? '#ef4444'
+        : marker.severity === 'WARNING'
+          ? '#f97316'
+          : marker.severity === 'WATCH'
+            ? '#f59e0b'
+            : '#22c55e'
+      return {
+        id: `anomaly-${marker.timestamp}-${index}`,
+        time: asUtcTimestamp(marker.timestamp),
+        position: 'belowBar' as const,
+        shape: 'circle' as const,
+        color,
+        text: 'A',
+      }
+    })
+
     const markerData: SeriesMarker<Time>[] = [
       ...annotations.markers.map((marker) => ({
         id: marker.id,
@@ -1030,10 +1072,11 @@ export default function StockChart({
         text: 'N',
         price: note.price,
       })),
+      ...anomalySeriesMarkers,
     ]
 
     markerPluginRef.current.setMarkers(markerData)
-  }, [annotations.markers, annotations.notes])
+  }, [annotations.markers, annotations.notes, anomalyMarkers])
 
   useEffect(() => {
     if (!chartRef.current) return
@@ -1470,6 +1513,14 @@ export default function StockChart({
                     {item.label}: {item.value}
                   </span>
                 ))}
+              </div>
+            )}
+            {hoverDetails.anomalySeverity && (
+              <div className={styles.hoverIndicatorList}>
+                <span className={styles.hoverIndicatorItem}>
+                  <span className={styles.legendDot} style={{ backgroundColor: hoverDetails.anomalySeverity === 'CRITICAL' ? '#ef4444' : hoverDetails.anomalySeverity === 'WARNING' ? '#f97316' : hoverDetails.anomalySeverity === 'WATCH' ? '#f59e0b' : '#22c55e' }} />
+                  ANOMALY: {hoverDetails.anomalySeverity} ({(hoverDetails.anomalyScore ?? 0).toFixed(3)})
+                </span>
               </div>
             )}
           </div>

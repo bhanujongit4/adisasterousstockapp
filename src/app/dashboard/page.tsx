@@ -20,6 +20,13 @@ type WatchlistResponse = {
   limit: number
 }
 
+type AnomalyMarker = {
+  timestamp: number
+  severity: 'CRITICAL' | 'WARNING' | 'WATCH' | 'NORMAL'
+  composite_score: number
+  price?: number | null
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
@@ -32,6 +39,7 @@ export default function DashboardPage() {
   const [pendingTop32, setPendingTop32] = useState('')
   const [manualSymbol, setManualSymbol] = useState('')
   const [watchlistError, setWatchlistError] = useState('')
+  const [anomalyMarkers, setAnomalyMarkers] = useState<AnomalyMarker[]>([])
 
   const {
     stocks,
@@ -96,6 +104,10 @@ export default function DashboardPage() {
       setPendingTop32(addableTop32[0].symbol)
     }
   }, [addableTop32, pendingTop32])
+
+  useEffect(() => {
+    setAnomalyMarkers([])
+  }, [selectedSymbol])
 
   async function loadWatchlist() {
     const res = await fetch('/api/watchlist')
@@ -275,7 +287,7 @@ export default function DashboardPage() {
             selectedStock && (
               <>
                 <MarketStats stock={selectedStock} />
-                <StockSignalCard ticker={selectedStock.symbol} timeframe={timeframe} />
+                <StockSignalCard ticker={selectedStock.symbol} onAnomalyOverlayChange={setAnomalyMarkers} />
                 <div className={styles.chartArea}>
                   <div className={styles.chartHeader}>
                     <span className={styles.chartLabel}>
@@ -291,6 +303,7 @@ export default function DashboardPage() {
                       timeframe={timeframe}
                       setTimeframe={setTimeframe}
                       theme={theme}
+                      anomalyMarkers={anomalyMarkers}
                     />
                   </div>
                 </div>
