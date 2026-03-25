@@ -170,6 +170,19 @@ interface IndicatorLine {
   data: Array<{ time: UTCTimestamp; value: number }>
 }
 
+interface IndicatorValueSnapshot {
+  id: string
+  label: string
+  pane: IndicatorPane
+  color: string
+  value: number
+}
+
+interface PaneOverlayState {
+  tops: number[]
+  separators: number[]
+}
+
 const EMPTY_ANNOTATIONS: StoredAnnotations = {
   trendlines: [],
   markers: [],
@@ -177,6 +190,10 @@ const EMPTY_ANNOTATIONS: StoredAnnotations = {
 }
 
 const INDICATOR_COLORS = ['#29c38a', '#e3a548', '#e06d78', '#9aa6bb', '#7bc5a2', '#c7a76a', '#b08ad2', '#7f8ca2', '#89b9a6']
+const DEFAULT_PANE_FACTORS: Record<number, number[]> = {
+  2: [0.78, 0.22],
+  3: [0.62, 0.18, 0.2],
+}
 const INDICATOR_DEFINITIONS: IndicatorDefinition[] = [
   { key: 'SMA', label: 'SMA', pane: 'overlay', description: 'Simple moving average trend smoothing.' },
   { key: 'EMA', label: 'EMA', pane: 'overlay', description: 'Exponential moving average with faster reaction.' },
@@ -300,6 +317,8 @@ export default function StockChart({
   const [markerControlPositions, setMarkerControlPositions] = useState<MarkerControlPosition[]>([])
   const [trendlineControlPositions, setTrendlineControlPositions] = useState<TrendlineControlPosition[]>([])
   const [selectedCandle, setSelectedCandle] = useState<CandleDetails | null>(null)
+  const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<IndicatorValueSnapshot[]>([])
+  const [paneOverlay, setPaneOverlay] = useState<PaneOverlayState>({ tops: [10, 10], separators: [0] })
 
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -315,7 +334,10 @@ export default function StockChart({
   const trendlineStartRef = useRef<PointAnnotation | null>(trendlineStart)
   const annotationsRef = useRef<StoredAnnotations>(annotations)
   const candleLookupRef = useRef<Map<number, CandleDetails>>(new Map())
+  const indicatorLinesRef = useRef<IndicatorLine[]>([])
   const updateOverlayPositionsRef = useRef<() => void>(() => {})
+  const paneFactorsByCountRef = useRef<Record<number, number[]>>({ ...DEFAULT_PANE_FACTORS })
+  const lastPaneCountRef = useRef<number>(2)
 
   const aggregatedHistory = useMemo(
     () => aggregateHistory(stock.history, timeframe),
@@ -543,6 +565,25 @@ export default function StockChart({
     }
   }
 
+  function nearestIndicatorValue(
+    lineData: Array<{ time: UTCTimestamp; value: number }>,
+    targetTime: number,
+  ): number | null {
+    if (lineData.length === 0) return null
+    let nearest = lineData[0]
+    let minDelta = Math.abs(Number(nearest.time) - targetTime)
+
+    for (let i = 1; i < lineData.length; i += 1) {
+      const point = lineData[i]
+      const delta = Math.abs(Number(point.time) - targetTime)
+      if (delta < minDelta) {
+        nearest = point
+        minDelta = delta
+      }
+    }
+    return nearest.value
+  }
+
   useEffect(() => {
     drawModeRef.current = drawMode
   }, [drawMode])
@@ -558,6 +599,10 @@ export default function StockChart({
   useEffect(() => {
     annotationsRef.current = annotations
   }, [annotations])
+
+  useEffect(() => {
+    indicatorLinesRef.current = indicatorLines
+  }, [indicatorLines])
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -588,6 +633,54 @@ export default function StockChart({
     setPendingNotePosition(null)
   }, [stock.symbol])
 
+  function capturePaneFactors() {
+    if (!chartRef.current) return
+    const panes = chartRef.current.panes()
+    const count = panes.length
+    if (count < 2) return
+    paneFactorsByCountRef.current[count] = panes.map((pane) => pane.getStretchFactor())
+  }
+
+  function applyPaneFactors(paneCount: number) {
+    if (!chartRef.current || paneCount < 2) return
+    const panes = chartRef.current.panes()
+    const fallback = DEFAULT_PANE_FACTORS[paneCount] ?? DEFAULT_PANE_FACTORS[2]
+    const factors = paneFactorsByCountRef.current[paneCount] ?? fallback
+    panes.forEach((pane, index) => {
+      const nextFactor = factors[index] ?? fallback[index] ?? 1
+      pane.setStretchFactor(nextFactor)
+    })
+  }
+
+  function syncPaneOverlay() {
+    if (!chartRef.current) return
+    const panes = chartRef.current.panes()
+    if (panes.length === 0) return
+
+    const tops: number[] = []
+    const separators: number[] = []
+    let offset = 0
+    panes.forEach((pane, index) => {
+      tops.push(offset + 10)
+      offset += pane.getHeight()
+      if (index < panes.length - 1) {
+        separators.push(offset)
+      }
+    })
+
+    setPaneOverlay((prev) => {
+      if (
+        prev.tops.length === tops.length &&
+        prev.separators.length === separators.length &&
+        prev.tops.every((value, index) => Math.abs(value - tops[index]) < 1) &&
+        prev.separators.every((value, index) => Math.abs(value - separators[index]) < 1)
+      ) {
+        return prev
+      }
+      return { tops, separators }
+    })
+  }
+
   useEffect(() => {
     const chartContainer = chartContainerRef.current
     if (!chartContainer) return
@@ -604,7 +697,7 @@ export default function StockChart({
       layout: {
         background: { type: ColorType.Solid, color: bgSecondary },
         textColor: textSecondary,
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: 'IBM Plex Sans, sans-serif',
         attributionLogo: false,
         panes: {
           enableResize: true,
@@ -703,9 +796,9 @@ export default function StockChart({
       visible: false,
     })
 
-    const panes = chart.panes()
-    panes[0]?.setStretchFactor(0.78)
-    panes[1]?.setStretchFactor(0.22)
+    applyPaneFactors(2)
+    lastPaneCountRef.current = 2
+    syncPaneOverlay()
 
     markerPluginRef.current = createSeriesMarkers(mainSeries, [])
 
@@ -728,6 +821,21 @@ export default function StockChart({
       if (typeof clickedTime === 'number') {
         const candle = candleLookupRef.current.get(clickedTime)
         if (candle) setSelectedCandle(candle)
+
+        const snapshots = indicatorLinesRef.current
+          .map((line) => {
+            const value = nearestIndicatorValue(line.data, clickedTime)
+            if (value == null) return null
+            return {
+              id: line.id,
+              label: line.label,
+              pane: line.pane,
+              color: line.color,
+              value: Number(value.toFixed(4)),
+            }
+          })
+          .filter(Boolean) as IndicatorValueSnapshot[]
+        setSelectedIndicatorValues(snapshots)
       }
       if (!point) return
 
@@ -785,13 +893,24 @@ export default function StockChart({
 
     const resizeObserver = new ResizeObserver(() => {
       updateOverlayPositionsRef.current()
+      syncPaneOverlay()
     })
     resizeObserver.observe(chartContainer)
     resizeObserverRef.current = resizeObserver
 
     chartRef.current = chart
 
+    const rememberPaneAdjustments = () => {
+      capturePaneFactors()
+      syncPaneOverlay()
+    }
+    chartContainer.addEventListener('pointerup', rememberPaneAdjustments)
+    chartContainer.addEventListener('touchend', rememberPaneAdjustments)
+
     return () => {
+      capturePaneFactors()
+      chartContainer.removeEventListener('pointerup', rememberPaneAdjustments)
+      chartContainer.removeEventListener('touchend', rememberPaneAdjustments)
       chart.unsubscribeClick(onClick)
       chart.unsubscribeCrosshairMove(updateNotes)
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(updateNotes)
@@ -899,14 +1018,12 @@ export default function StockChart({
 
     const panes = chartRef.current.panes()
     const hasOscillator = indicatorLines.some((line) => line.pane === 'oscillator')
-    if (hasOscillator && panes.length >= 3) {
-      panes[0]?.setStretchFactor(0.62)
-      panes[1]?.setStretchFactor(0.18)
-      panes[2]?.setStretchFactor(0.2)
-    } else if (panes.length >= 2) {
-      panes[0]?.setStretchFactor(0.78)
-      panes[1]?.setStretchFactor(0.22)
+    const expectedPaneCount = hasOscillator ? 3 : 2
+    if (panes.length >= expectedPaneCount && lastPaneCountRef.current !== expectedPaneCount) {
+      applyPaneFactors(expectedPaneCount)
+      lastPaneCountRef.current = expectedPaneCount
     }
+    syncPaneOverlay()
   }, [indicatorLines])
 
   updateOverlayPositionsRef.current = () => {
@@ -915,6 +1032,7 @@ export default function StockChart({
       setMarkerControlPositions((prev) => (prev.length === 0 ? prev : []))
       setTrendlineControlPositions((prev) => (prev.length === 0 ? prev : []))
       setPendingNotePosition(null)
+      setPaneOverlay({ tops: [10, 10], separators: [0] })
       return
     }
 
@@ -977,6 +1095,7 @@ export default function StockChart({
     } else {
       setPendingNotePosition(null)
     }
+    syncPaneOverlay()
   }
 
   useEffect(() => {
@@ -985,7 +1104,14 @@ export default function StockChart({
 
   useEffect(() => {
     setSelectedCandle(null)
+    setSelectedIndicatorValues([])
   }, [stock.symbol, timeframe])
+
+  useEffect(() => {
+    if (indicatorLines.length === 0) {
+      setSelectedIndicatorValues([])
+    }
+  }, [indicatorLines.length])
 
   async function clearAnnotations() {
     setAnnotationsError('')
@@ -1243,7 +1369,6 @@ export default function StockChart({
         <div className={styles.indicatorLegend}>
           {overlayIndicatorLines.length > 0 && (
             <div className={styles.legendGroup}>
-              <span className={styles.legendTitle}>PRICE PANE</span>
               {overlayIndicatorLines.map((line) => (
                 <span key={line.id} className={styles.legendItem}>
                   <span className={styles.legendDot} style={{ backgroundColor: line.color }} />
@@ -1254,7 +1379,6 @@ export default function StockChart({
           )}
           {oscillatorIndicatorLines.length > 0 && (
             <div className={styles.legendGroup}>
-              <span className={styles.legendTitle}>OSCILLATOR PANE</span>
               {oscillatorIndicatorLines.map((line) => (
                 <span key={line.id} className={styles.legendItem}>
                   <span className={styles.legendDot} style={{ backgroundColor: line.color }} />
@@ -1277,13 +1401,37 @@ export default function StockChart({
         </div>
       )}
 
+      {selectedIndicatorValues.length > 0 && (
+        <div className={styles.indicatorValuePanel}>
+          {selectedIndicatorValues.map((item) => (
+            <span key={item.id} className={styles.indicatorValueItem}>
+              <span className={styles.legendDot} style={{ backgroundColor: item.color }} />
+              {item.label}: {item.value}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className={styles.chartStack}>
         <div className={styles.mainChart} ref={chartContainerRef} />
-        <div className={styles.priceBadge}>PRICE PANE</div>
-        <div className={`${styles.volumeBadge} ${oscillatorIndicatorLines.length > 0 ? styles.volumeWithOsc : styles.volumeNoOsc}`}>
-          VOLUME PANE
+        <div className={styles.paneLabel} style={{ top: paneOverlay.tops[0] ?? 10 }}>
+          PRICE
         </div>
-        {oscillatorIndicatorLines.length > 0 && <div className={styles.oscillatorBadge}>OSCILLATOR PANE</div>}
+        {paneOverlay.tops[1] !== undefined && (
+          <div className={styles.paneLabel} style={{ top: paneOverlay.tops[1] }}>
+            VOLUME
+          </div>
+        )}
+        {oscillatorIndicatorLines.length > 0 && paneOverlay.tops[2] !== undefined && (
+          <div className={styles.paneLabel} style={{ top: paneOverlay.tops[2] }}>
+            OSCILLATOR
+          </div>
+        )}
+        {paneOverlay.separators.map((separatorTop, index) => (
+          <div key={`separator-${index}`} className={styles.paneSeparatorGuide} style={{ top: separatorTop - 7 }}>
+            <span className={styles.separatorHint}>DRAG TO RESIZE PANES</span>
+          </div>
+        ))}
         <div className={styles.noteLayer}>
           {trendlineControlPositions.map((item) => (
             <button
@@ -1382,6 +1530,7 @@ export default function StockChart({
           )}
         </div>
       </div>
+
     </div>
   )
 }

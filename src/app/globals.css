@@ -1,13 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg-primary: #050607;
-  --bg-secondary: #0c0e11;
-  --bg-tertiary: #13161b;
-  --bg-card: #11151b;
-  --bg-card-hover: #171c24;
-  --border: #242a35;
-  --border-bright: #343e4d;
+  --bg-primary: #070707;
+  --bg-secondary: #111111;
+  --bg-tertiary: #181818;
+  --bg-card: #151515;
+  --bg-card-hover: #1e1e1e;
+  --border: #2a2a2a;
+  --border-bright: #3b3b3b;
 
   --green: #29c38a;
   --green-dim: #1d9d70;
@@ -17,13 +17,18 @@
   --red-muted: rgba(225, 90, 103, 0.14);
   --amber: #d8a34f;
 
-  --text-primary: #eef1f7;
-  --text-secondary: #98a5b9;
-  --text-muted: #69758b;
-  --text-accent: #d9dee8;
+  --text-primary: #ececec;
+  --text-secondary: #c5c5c5;
+  --text-muted: #8f8f8f;
+  --text-accent: #f3f3f3;
+  --overlay-panel-bg: rgba(20, 20, 20, 0.94);
+  --overlay-panel-border: rgba(190, 190, 190, 0.34);
+  --overlay-panel-text: #efefef;
+  --overlay-danger-bg: rgba(127, 29, 29, 0.92);
+  --overlay-danger-border: rgba(248, 113, 113, 0.8);
 
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
 }
 
 html[data-theme='light'] {
@@ -43,10 +48,15 @@ html[data-theme='light'] {
   --red-muted: rgba(200, 71, 84, 0.14);
   --amber: #b9822f;
 
-  --text-primary: #0f1726;
-  --text-secondary: #43536c;
-  --text-muted: #667892;
-  --text-accent: #1b2b44;
+  --text-primary: #172131;
+  --text-secondary: #344761;
+  --text-muted: #5c6e85;
+  --text-accent: #1b2e4a;
+  --overlay-panel-bg: rgba(255, 255, 255, 0.96);
+  --overlay-panel-border: rgba(149, 161, 181, 0.45);
+  --overlay-panel-text: #1f2d3f;
+  --overlay-danger-bg: rgba(227, 72, 91, 0.92);
+  --overlay-danger-border: rgba(187, 44, 64, 0.8);
 }
 
 * {
@@ -56,7 +66,7 @@ html[data-theme='light'] {
 }
 
 html {
-  font-size: 14px;
+  font-size: 15px;
   scroll-behavior: smooth;
 }
 
@@ -89,3 +99,4 @@ body {
 .up { color: var(--green); }
 .down { color: var(--red); }
 .flat { color: var(--text-secondary); }
+

@@ -13,7 +13,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
-  height: 54px;
+  height: 64px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
   flex-shrink: 0;
@@ -26,16 +26,16 @@
 }
 
 .logoText {
-  font-family: var(--font-mono);
-  font-size: 17px;
+  font-family: var(--font-sans);
+  font-size: 22px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.06em;
 }
 
 .logoBadge {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   color: var(--text-muted);
   border: 1px solid var(--border-bright);
   padding: 1px 6px;
@@ -50,8 +50,8 @@
 }
 
 .metaItem {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   color: var(--text-muted);
   letter-spacing: 0.1em;
   display: flex;
@@ -119,6 +119,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
 .center {
@@ -126,6 +127,7 @@
   flex-direction: column;
   overflow: visible;
   border-right: 1px solid var(--border);
+  min-width: 0;
 }
 
 .chartArea {
@@ -146,22 +148,22 @@
 }
 
 .chartLabel {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   color: var(--text-secondary);
   letter-spacing: 0.1em;
 }
 
 .chartSub {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   color: var(--text-muted);
 }
 
 .chartBody {
   flex: 1;
   padding: 12px 8px 12px 0;
-  min-height: 760px;
+  min-height: 420px;
   height: auto;
   overflow: visible;
 }
@@ -202,8 +204,8 @@
 }
 
 .moverSym {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   width: 42px;
@@ -228,7 +230,7 @@
 }
 
 .moverPct {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   width: 52px;
   text-align: right;
@@ -274,7 +276,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-muted);
   letter-spacing: 0.15em;
@@ -295,21 +297,62 @@
 
 /* Responsive */
 @media (max-width: 900px) {
+  .nav {
+    padding: 8px 12px;
+    height: auto;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .navMeta {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
   .layout {
     grid-template-columns: 180px 1fr;
   }
   .rightPanel {
     display: none;
   }
+  .chartBody {
+    padding: 8px 8px 8px 0;
+    min-height: 380px;
+  }
 }
 
 @media (max-width: 600px) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: minmax(280px, 44vh) minmax(360px, 1fr);
+    overflow: auto;
   }
   .sidebar {
-    display: none;
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    max-height: 44vh;
+  }
+  .center {
+    border-right: none;
+  }
+  .watchlistManager {
+    padding: 8px;
+  }
+  .managerRow {
+    grid-template-columns: 1fr;
+  }
+  .managerBtn {
+    height: 34px;
+  }
+  .chartHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 10px;
+  }
+  .chartBody {
+    padding: 8px 0;
+    min-height: 360px;
   }
 }
 
@@ -335,7 +378,7 @@
 }
 
 .authHeader {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   letter-spacing: 0.09em;
   font-size: 14px;
   color: var(--text-primary);
@@ -348,8 +391,8 @@
 }
 
 .authLabel {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -368,7 +411,7 @@
   color: #00160b;
   border: none;
   border-radius: 8px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 700;
   padding: 10px 12px;
   cursor: pointer;
@@ -399,8 +442,8 @@
 }
 
 .managerHead {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
@@ -419,7 +462,7 @@
   color: var(--text-primary);
   border-radius: 6px;
   padding: 7px 8px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .managerBtn {
@@ -427,14 +470,14 @@
   background: var(--bg-card);
   color: var(--text-secondary);
   border-radius: 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   padding: 0 10px;
   cursor: pointer;
 }
 
 .watchlistError {
   color: var(--red);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .symbolPills {
@@ -448,8 +491,8 @@
   border: 1px solid var(--border);
   color: var(--text-secondary);
   border-radius: 999px;
-  font-size: 10px;
-  font-family: var(--font-mono);
+  font-size: 12px;
+  font-family: var(--font-sans);
   padding: 4px 8px;
   cursor: pointer;
 }
@@ -457,6 +500,8 @@
 .emptyState {
   padding: 24px;
   color: var(--text-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
 }
+
+

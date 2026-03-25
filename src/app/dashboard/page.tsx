@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Activity, LogOut, Moon, RefreshCw, Sun, TrendingDown, TrendingUp } from 'lucide-react'
 import { StockChoice, StockQuote } from '../lib/stockData'
@@ -54,7 +54,7 @@ export default function DashboardPage() {
     [availableStocks, watchlistSymbols],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof document === 'undefined') return
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
