@@ -57,6 +57,7 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
+  const [horrorMode, setHorrorMode] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [mounted, setMounted] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -131,7 +132,17 @@ export default function Home() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) { setAuthError(data?.error ?? 'Authentication failed.'); return }
+      if (!res.ok) {
+        const isWrongLogin = authMode === 'login' && res.status === 401
+        if (isWrongLogin) {
+          setHorrorMode(true)
+          setAuthError('No password, we opps.')
+        } else {
+          setAuthError(data?.error ?? 'Authentication failed.')
+        }
+        return
+      }
+      setHorrorMode(false)
       setPassword('')
       router.push('/dashboard')
     } catch {
@@ -299,7 +310,7 @@ export default function Home() {
             <button
               className={styles.authSwitch}
               type="button"
-              onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError('') }}
+              onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError(''); setHorrorMode(false) }}
             >
               {authMode === 'login' ? 'New here? Sign up free' : 'Have an account? Login'}
             </button>
@@ -324,6 +335,87 @@ export default function Home() {
         <span className={styles.footerDot}>·</span>
         <span>Markets data is 15 min delayed for display purposes</span>
       </footer>
+      {horrorMode && (
+        <div className={styles.horrorOverlay}>
+          <div className={styles.horrorBackdrop} />
+          <div className={styles.horrorLayout}>
+            <div className={styles.horrorMessage}>
+              <p className={styles.horrorKicker}>Login failed.</p>
+              <h1 className={styles.horrorHeadline}>NEVER DO THAT AGAIN</h1>
+              <p className={styles.horrorLine}>Will Spin On Your Block,</p>
+              <p className={styles.horrorLine}>No PASSWORD, so we OPPS.</p>
+              <button
+                type="button"
+                className={styles.horrorClose}
+                onClick={() => setHorrorMode(false)}
+              >
+                Back to normal screen
+              </button>
+            </div>
+
+            <form className={`${styles.authCard} ${styles.horrorAuthCard}`} onSubmit={handleAuthSubmit}>
+              <div className={styles.authTopBar}>
+                <span className={styles.authDotRed} />
+                <span className={styles.authDotYellow} />
+                <span className={styles.authDotGreen} />
+              </div>
+
+              <div className={styles.authTitle}>
+                {authMode === 'login' ? 'Try that again.' : 'Create account'}
+              </div>
+              <div className={styles.authSub}>
+                {authMode === 'login'
+                  ? 'Enter correct credentials to continue.'
+                  : 'Sign up and enter the terminal.'}
+              </div>
+
+              <div className={styles.authField}>
+                <label className={styles.authLabel}>EMAIL</label>
+                <input
+                  className={styles.authInput}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  type="email"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              <div className={styles.authField}>
+                <label className={styles.authLabel}>PASSWORD</label>
+                <input
+                  className={styles.authInput}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={authMode === 'signup' ? 'Min. 8 characters' : 'Enter password'}
+                  type="password"
+                  autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                  required
+                />
+              </div>
+
+              {authError && <div className={styles.authError}>{authError}</div>}
+
+              <button className={styles.authPrimary} type="submit" disabled={authBusy}>
+                {authBusy
+                  ? 'Please wait...'
+                  : authMode === 'signup'
+                  ? 'â†’ Create Account'
+                  : 'â†’ Enter Terminal'}
+              </button>
+
+              <button
+                className={styles.authSwitch}
+                type="button"
+                onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError('') }}
+              >
+                {authMode === 'login' ? 'New here? Sign up free' : 'Have an account? Login'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
