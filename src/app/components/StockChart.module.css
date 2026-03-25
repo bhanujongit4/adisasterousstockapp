@@ -18,12 +18,12 @@
 }
 
 .fullscreenWrapper .toolbar {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 10px;
 }
 
 .fullscreenWrapper .label {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .fullscreenWrapper .modeBtn,
@@ -32,12 +32,26 @@
 .fullscreenWrapper .resumeBtn,
 .fullscreenWrapper .clearBtn,
 .fullscreenWrapper .indicatorSummary {
-  font-size: 15px;
-  padding: 9px 12px;
+  font-size: 16px;
+  padding: 10px 14px;
 }
 
 .fullscreenWrapper .statusBar {
+  font-size: 16px;
+}
+
+.fullscreenWrapper .legendItem,
+.fullscreenWrapper .paneLabel {
   font-size: 14px;
+}
+
+.fullscreenWrapper .separatorHint {
+  font-size: 11px;
+}
+
+.fullscreenWrapper .chartStack {
+  min-height: calc(100vh - 220px);
+  max-height: calc(100vh - 220px);
 }
 
 .toolbar {
@@ -282,11 +296,6 @@
   background: var(--bg-secondary);
 }
 
-.fullscreenWrapper .chartStack {
-  min-height: calc(100vh - 250px);
-  max-height: calc(100vh - 250px);
-}
-
 .mainChart {
   position: relative;
   min-height: 100%;
@@ -341,6 +350,61 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   line-height: 1.1;
+}
+
+.hoverDataBox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  max-width: min(360px, calc(100% - 20px));
+  border: 1px solid var(--border-bright);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border-radius: 8px;
+  padding: 7px 8px;
+  z-index: 7;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.hoverTime {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.hoverGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.hoverGrid span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.hoverIndicatorList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hoverIndicatorItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
 }
 
 .noteLayer {
@@ -455,6 +519,10 @@
     min-height: calc(100vh - 210px);
     max-height: calc(100vh - 210px);
   }
+  .hoverDataBox {
+    max-width: min(300px, calc(100% - 18px));
+    padding: 6px 7px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -494,6 +562,26 @@
   .separatorHint {
     font-size: 9px;
     padding: 0 8px;
+  }
+  .hoverDataBox {
+    top: 8px;
+    right: 8px;
+    max-width: min(245px, calc(100% - 16px));
+    border-radius: 7px;
+    padding: 5px 6px;
+  }
+  .hoverTime {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+  .hoverGrid,
+  .hoverIndicatorList {
+    gap: 4px;
+  }
+  .hoverGrid span,
+  .hoverIndicatorItem {
+    font-size: 10px;
+    padding: 1px 6px;
   }
 }
 

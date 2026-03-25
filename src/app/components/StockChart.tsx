@@ -178,6 +178,16 @@ interface IndicatorValueSnapshot {
   value: number
 }
 
+interface HoverDetails {
+  timeLabel: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+  indicatorValues: IndicatorValueSnapshot[]
+}
+
 interface PaneOverlayState {
   tops: number[]
   separators: number[]
@@ -274,11 +284,11 @@ function aggregateHistory(history: StockQuote['history'], timeframe: Timeframe):
   return bars
 }
 
-function getBarSpacing(timeframe: Timeframe) {
-  if (timeframe === '5m') return 5
-  if (timeframe === '15m') return 7
-  if (timeframe === '1h') return 10
-  return 14
+function getBarSpacing(timeframe: Timeframe, scale = 1) {
+  if (timeframe === '5m') return Math.round(5 * scale)
+  if (timeframe === '15m') return Math.round(7 * scale)
+  if (timeframe === '1h') return Math.round(10 * scale)
+  return Math.round(14 * scale)
 }
 
 function buildAlignedSeries(
@@ -316,8 +326,7 @@ export default function StockChart({
   const [notePositions, setNotePositions] = useState<NotePosition[]>([])
   const [markerControlPositions, setMarkerControlPositions] = useState<MarkerControlPosition[]>([])
   const [trendlineControlPositions, setTrendlineControlPositions] = useState<TrendlineControlPosition[]>([])
-  const [selectedCandle, setSelectedCandle] = useState<CandleDetails | null>(null)
-  const [selectedIndicatorValues, setSelectedIndicatorValues] = useState<IndicatorValueSnapshot[]>([])
+  const [hoverDetails, setHoverDetails] = useState<HoverDetails | null>(null)
   const [paneOverlay, setPaneOverlay] = useState<PaneOverlayState>({ tops: [10, 10], separators: [0] })
 
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
@@ -720,7 +729,7 @@ export default function StockChart({
         borderColor: border,
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: getBarSpacing(timeframe),
+        barSpacing: getBarSpacing(timeframe, isFullscreen ? 1.5 : 1),
         minBarSpacing: 4,
         rightOffset: 0,
         shiftVisibleRangeOnNewBar: false,
@@ -817,25 +826,36 @@ export default function StockChart({
 
     const onClick = (param: MouseEventParams<Time>) => {
       const point = resolveClickPoint(param)
-      const clickedTime = param.time
+      const clickedTime = typeof param.time === 'number'
+        ? param.time
+        : point?.time
       if (typeof clickedTime === 'number') {
         const candle = candleLookupRef.current.get(clickedTime)
-        if (candle) setSelectedCandle(candle)
+        if (candle) {
+          const snapshots = indicatorLinesRef.current
+            .map((line) => {
+              const value = nearestIndicatorValue(line.data, clickedTime)
+              if (value == null) return null
+              return {
+                id: line.id,
+                label: line.label,
+                pane: line.pane,
+                color: line.color,
+                value: Number(value.toFixed(4)),
+              }
+            })
+            .filter(Boolean) as IndicatorValueSnapshot[]
 
-        const snapshots = indicatorLinesRef.current
-          .map((line) => {
-            const value = nearestIndicatorValue(line.data, clickedTime)
-            if (value == null) return null
-            return {
-              id: line.id,
-              label: line.label,
-              pane: line.pane,
-              color: line.color,
-              value: Number(value.toFixed(4)),
-            }
+          setHoverDetails({
+            timeLabel: candle.timeLabel,
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume,
+            indicatorValues: snapshots,
           })
-          .filter(Boolean) as IndicatorValueSnapshot[]
-        setSelectedIndicatorValues(snapshots)
+        }
       }
       if (!point) return
 
@@ -886,10 +906,57 @@ export default function StockChart({
       }
     }
 
-    const updateNotes = () => updateOverlayPositionsRef.current()
+    const updateNotes = (param?: MouseEventParams<Time>) => {
+      updateOverlayPositionsRef.current()
+      if (!param) return
+
+      let hoverTime: number | null = null
+      if (typeof param.time === 'number') {
+        hoverTime = param.time
+      } else if (param.point && chartRef.current) {
+        const inferred = chartRef.current.timeScale().coordinateToTime(param.point.x)
+        if (typeof inferred === 'number') hoverTime = inferred
+      }
+
+      if (hoverTime == null) {
+        setHoverDetails(null)
+        return
+      }
+
+      const candle = candleLookupRef.current.get(hoverTime)
+      if (!candle) {
+        setHoverDetails(null)
+        return
+      }
+
+      const snapshots = indicatorLinesRef.current
+        .map((line) => {
+          const value = nearestIndicatorValue(line.data, hoverTime as number)
+          if (value == null) return null
+          return {
+            id: line.id,
+            label: line.label,
+            pane: line.pane,
+            color: line.color,
+            value: Number(value.toFixed(4)),
+          }
+        })
+        .filter(Boolean) as IndicatorValueSnapshot[]
+
+      setHoverDetails({
+        timeLabel: candle.timeLabel,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+        indicatorValues: snapshots,
+      })
+    }
+    const onVisibleRangeChange = () => updateNotes()
     chart.subscribeClick(onClick)
     chart.subscribeCrosshairMove(updateNotes)
-    chart.timeScale().subscribeVisibleLogicalRangeChange(updateNotes)
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange)
 
     const resizeObserver = new ResizeObserver(() => {
       updateOverlayPositionsRef.current()
@@ -913,7 +980,7 @@ export default function StockChart({
       chartContainer.removeEventListener('touchend', rememberPaneAdjustments)
       chart.unsubscribeClick(onClick)
       chart.unsubscribeCrosshairMove(updateNotes)
-      chart.timeScale().unsubscribeVisibleLogicalRangeChange(updateNotes)
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleRangeChange)
       resizeObserverRef.current?.disconnect()
       resizeObserverRef.current = null
       chart.remove()
@@ -924,7 +991,7 @@ export default function StockChart({
       trendlineSeriesRef.current.clear()
       indicatorSeriesRef.current.clear()
     }
-  }, [chartType, stock.symbol, theme, timeframe])
+  }, [chartType, stock.symbol, theme, timeframe, isFullscreen])
 
   useEffect(() => {
     if (!mainSeriesRef.current || !volumeSeriesRef.current) return
@@ -1103,15 +1170,8 @@ export default function StockChart({
   }, [annotations.markers, annotations.notes, annotations.trendlines, chartType, lineLikeData, ohlcData, pendingNotePoint])
 
   useEffect(() => {
-    setSelectedCandle(null)
-    setSelectedIndicatorValues([])
-  }, [stock.symbol, timeframe])
-
-  useEffect(() => {
-    if (indicatorLines.length === 0) {
-      setSelectedIndicatorValues([])
-    }
-  }, [indicatorLines.length])
+    setHoverDetails(null)
+  }, [stock.symbol, timeframe, indicatorLines.length])
 
   async function clearAnnotations() {
     setAnnotationsError('')
@@ -1390,30 +1450,30 @@ export default function StockChart({
         </div>
       )}
 
-      {selectedCandle && (
-        <div className={styles.candlePanel}>
-          <span className={styles.candleItem}>TIME: {selectedCandle.timeLabel}</span>
-          <span className={styles.candleItem}>OPEN: ${selectedCandle.open.toFixed(2)}</span>
-          <span className={styles.candleItem}>HIGH: ${selectedCandle.high.toFixed(2)}</span>
-          <span className={styles.candleItem}>LOW: ${selectedCandle.low.toFixed(2)}</span>
-          <span className={styles.candleItem}>CLOSE: ${selectedCandle.close.toFixed(2)}</span>
-          <span className={styles.candleItem}>VOL: {selectedCandle.volume.toLocaleString('en-US')}</span>
-        </div>
-      )}
-
-      {selectedIndicatorValues.length > 0 && (
-        <div className={styles.indicatorValuePanel}>
-          {selectedIndicatorValues.map((item) => (
-            <span key={item.id} className={styles.indicatorValueItem}>
-              <span className={styles.legendDot} style={{ backgroundColor: item.color }} />
-              {item.label}: {item.value}
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className={styles.chartStack}>
         <div className={styles.mainChart} ref={chartContainerRef} />
+        {hoverDetails && (
+          <div className={styles.hoverDataBox}>
+            <div className={styles.hoverTime}>{hoverDetails.timeLabel}</div>
+            <div className={styles.hoverGrid}>
+              <span>O ${hoverDetails.open.toFixed(2)}</span>
+              <span>H ${hoverDetails.high.toFixed(2)}</span>
+              <span>L ${hoverDetails.low.toFixed(2)}</span>
+              <span>C ${hoverDetails.close.toFixed(2)}</span>
+              <span>V {hoverDetails.volume.toLocaleString('en-US')}</span>
+            </div>
+            {hoverDetails.indicatorValues.length > 0 && (
+              <div className={styles.hoverIndicatorList}>
+                {hoverDetails.indicatorValues.map((item) => (
+                  <span key={item.id} className={styles.hoverIndicatorItem}>
+                    <span className={styles.legendDot} style={{ backgroundColor: item.color }} />
+                    {item.label}: {item.value}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className={styles.paneLabel} style={{ top: paneOverlay.tops[0] ?? 10 }}>
           PRICE
         </div>
