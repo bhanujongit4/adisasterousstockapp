@@ -1,0 +1,81 @@
+Stock Intelligence Setup + Run Commands (Windows / PowerShell)
+===============================================================
+
+Project root:
+C:\Users\Admin\OneDrive\Desktop\stockanalysis
+
+
+1) Create / Recreate Python venv
+--------------------------------
+cd C:\Users\Admin\OneDrive\Desktop\stockanalysis
+Remove-Item -Recurse -Force .\services\stock-intelligence\.venv
+python -m venv .\services\stock-intelligence\.venv
+Test-Path .\services\stock-intelligence\.venv\Scripts\python.exe
+
+
+2) Install dependencies
+-----------------------
+.\services\stock-intelligence\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\services\stock-intelligence\.venv\Scripts\python.exe -m pip install -r .\services\stock-intelligence\requirements.txt
+.\services\stock-intelligence\.venv\Scripts\python.exe -m pip show fastapi yfinance hmmlearn pandas
+
+
+3) Run FastAPI model service
+----------------------------
+cd C:\Users\Admin\OneDrive\Desktop\stockanalysis\services\stock-intelligence
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+
+
+4) Verify FastAPI endpoints
+---------------------------
+Invoke-WebRequest http://127.0.0.1:8000/health
+Invoke-WebRequest http://127.0.0.1:8000/api/signal/MSFT
+
+
+5) Next.js env and run
+----------------------
+cd C:\Users\Admin\OneDrive\Desktop\stockanalysis
+
+# Ensure this exists in .env.local:
+STOCK_INTEL_API_URL=http://127.0.0.1:8000
+
+# Start Next app:
+npm run dev
+
+
+6) Verify Next proxy endpoint
+-----------------------------
+Open in browser:
+http://localhost:3000/api/signals?ticker=MSFT
+
+
+7) Normal daily startup (2 terminals)
+-------------------------------------
+Terminal A (FastAPI):
+cd C:\Users\Admin\OneDrive\Desktop\stockanalysis\services\stock-intelligence
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+
+Terminal B (Next.js):
+cd C:\Users\Admin\OneDrive\Desktop\stockanalysis
+npm run dev
+
+
+8) Restart sequence if dashboard signal breaks
+----------------------------------------------
+1. Stop both servers (Ctrl+C in both terminals).
+2. Start FastAPI first (Terminal A command above).
+3. Start Next.js second (Terminal B command above).
+4. Check:
+   - http://127.0.0.1:8000/health
+   - http://localhost:3000/api/signals?ticker=MSFT
+
+
+9) Git notes (important)
+------------------------
+- This repo now ignores venv folders:
+  .venv/, venv/, **/.venv/, **/venv/
+- So your Python environment will NOT be committed if it is untracked.
+
+# If .venv was already tracked before ignore rules:
+git rm -r --cached services/stock-intelligence/.venv
+git commit -m "Stop tracking local Python virtual environment"

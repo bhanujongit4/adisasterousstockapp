@@ -9,6 +9,7 @@ import MarketTicker from '../components/MarketTicker'
 import WatchlistPanel from '../components/WatchlistPanel'
 import StockChart from '../components/StockChart'
 import MarketStats from '../components/MarketStats'
+import StockSignalCard from '../components/StockSignalCard'
 import styles from './Dashboard.module.css'
 
 type User = { id: number; email: string }
@@ -274,6 +275,7 @@ export default function DashboardPage() {
             selectedStock && (
               <>
                 <MarketStats stock={selectedStock} />
+                <StockSignalCard ticker={selectedStock.symbol} timeframe={timeframe} />
                 <div className={styles.chartArea}>
                   <div className={styles.chartHeader}>
                     <span className={styles.chartLabel}>
