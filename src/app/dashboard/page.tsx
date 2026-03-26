@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, LogOut, Moon, RefreshCw, Sun, TrendingDown, TrendingUp } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { Activity, AlertTriangle, LogOut, Moon, Radar, RefreshCw, Sparkles, Sun, TrendingDown, TrendingUp } from 'lucide-react'
 import { StockChoice, StockQuote } from '../lib/stockData'
 import { useStockData } from '../hooks/useStockData'
 import MarketTicker from '../components/MarketTicker'
@@ -55,13 +56,58 @@ export default function DashboardPage() {
     setTimeframe,
   } = useStockData({ symbols: watchlistSymbols, enabled: Boolean(user) })
 
-  const gainers = [...stocks].sort((a, b) => b.changePercent - a.changePercent).slice(0, 3)
-  const losers  = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
-
   const addableTop32 = useMemo(
     () => availableStocks.filter((s) => !watchlistSymbols.includes(s.symbol)),
     [availableStocks, watchlistSymbols],
   )
+
+  const modelGuides: ModelGuide[] = [
+    {
+      tone: 'neutral',
+      icon: Radar,
+      title: 'Regime Model',
+      badge: 'Market mood',
+      summary: 'Tells you whether the stock is trending, drifting, or whipping around.',
+      plainEnglish:
+        'Think of this like the weather forecast for the chart. It helps you understand the current mood before you decide whether to be patient, cautious, or aggressive.',
+      chips: [
+        'Trend up = buyers are in control',
+        'Trend down = sellers are in control',
+        'Mean-reverting = price may snap back',
+        'Volatile = the stock is moving fast',
+      ],
+    },
+    {
+      tone: 'positive',
+      icon: Sparkles,
+      title: 'Order Flow',
+      badge: 'Fill quality',
+      summary: 'Shows whether trades are likely to move cleanly or get crowded.',
+      plainEnglish:
+        'This is the “how smooth is the ride?” model. A calm reading usually means cleaner execution, while a crowded reading means trades may slip, spike, or feel messy.',
+      chips: [
+        'Calm = smoother fills',
+        'Crowded = harder fills',
+        'Improving = getting cleaner',
+        'Worsening = getting noisier',
+      ],
+    },
+    {
+      tone: 'warning',
+      icon: AlertTriangle,
+      title: 'Anomaly Model',
+      badge: 'Yellow candles',
+      summary: 'Highlights candles that stand out from the recent pattern.',
+      plainEnglish:
+        'This is the “something odd just happened” detector. It does not say buy or sell by itself. It simply warns that the latest candle looks unusual and deserves attention.',
+      chips: [
+        'Normal = nothing special',
+        'Watch = mild surprise',
+        'Warning = yellow highlight on the chart',
+        'Critical = strongest unusual move',
+      ],
+    },
+  ]
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return
@@ -167,7 +213,6 @@ export default function DashboardPage() {
         <div className={styles.logo}>
           <Activity size={15} strokeWidth={2.5} color="var(--green)" />
           <span className={styles.logoText}>IN$JAM</span>
-          <span className={styles.logoBadge}>I Never $ Joke About Money</span>
         </div>
 
         <div className={styles.navMeta}>
@@ -285,6 +330,9 @@ export default function DashboardPage() {
             selectedStock && (
               <>
                 <MarketStats stock={selectedStock} />
+                <div className={styles.mobileGuide}>
+                  <ModelGuidePanel guides={modelGuides} />
+                </div>
                 <StockSignalCard
                   ticker={selectedStock.symbol}
                   onAnomalyOverlayChange={setAnomalyMarkers}
@@ -317,8 +365,9 @@ export default function DashboardPage() {
 
         {/* RIGHT PANEL */}
         <aside className={styles.rightPanel}>
-          <MoverList title="Top Gainers" stocks={gainers} type="up"   onSelect={setSelectedSymbol} />
-          <MoverList title="Top Losers"  stocks={losers}  type="down" onSelect={setSelectedSymbol} />
+          <div className={styles.desktopGuide}>
+            <ModelGuidePanel guides={modelGuides} />
+          </div>
           <MarketSummary stocks={stocks} />
         </aside>
       </div>
@@ -363,6 +412,60 @@ function MoverList({
 }
 
 /* ── MARKET BREADTH ── */
+type GuideTone = 'neutral' | 'positive' | 'warning'
+
+type ModelGuide = {
+  tone: GuideTone
+  icon: LucideIcon
+  title: string
+  badge: string
+  summary: string
+  plainEnglish: string
+  chips: string[]
+}
+
+function ModelGuidePanel({ guides }: { guides: ModelGuide[] }) {
+  return (
+    <section className={styles.guideStack}>
+      <div className={styles.guideIntro}>
+        <div className={styles.guideKicker}>How to read the models</div>
+        <p>Plain-English explanations of what each model is telling you, without the machine learning jargon.</p>
+      </div>
+
+      {guides.map((guide) => {
+        const Icon = guide.icon
+        return (
+          <article key={guide.title} className={`${styles.guideCard} ${styles[guide.tone]}`}>
+            <div className={styles.guideTop}>
+              <div className={styles.guideIconWrap}>
+                <Icon size={15} />
+              </div>
+              <div className={styles.guideMeta}>
+                <div className={styles.guideTitleRow}>
+                  <h3>{guide.title}</h3>
+                  <span>{guide.badge}</span>
+                </div>
+                <p>{guide.summary}</p>
+              </div>
+            </div>
+
+            <div className={styles.guideBody}>
+              <p>{guide.plainEnglish}</p>
+              <div className={styles.guidePills}>
+                {guide.chips.map((chip) => (
+                  <span key={chip} className={styles.guidePill}>
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </article>
+        )
+      })}
+    </section>
+  )
+}
+
 function MarketSummary({ stocks }: { stocks: StockQuote[] }) {
   const up   = stocks.filter((s) => s.changePercent > 0).length
   const down = stocks.filter((s) => s.changePercent < 0).length

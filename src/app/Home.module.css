@@ -51,7 +51,7 @@
 .rootLight::before {
   background:
     linear-gradient(rgba(238, 244, 240, 0.84), rgba(238, 244, 240, 0.84)),
-    url('/kingvon.jpg') center center / cover no-repeat;
+    url('/moneyimg.jpg') center center / cover no-repeat;
 }
 
 /* ══════════════════════════════════════════
@@ -135,6 +135,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .navLogoMark {
@@ -151,18 +152,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--text-primary);
-}
-
-.navLogoBadge {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  color: var(--accent-green);
-  border: 1px solid var(--border-bright);
-  padding: 2px 7px;
-  border-radius: 4px;
-  margin-top: 2px;
-  opacity: 0.8;
+  white-space: nowrap;
 }
 
 .navRight { display: flex; align-items: center; gap: 16px; }
@@ -253,6 +243,10 @@
 
 .heroLeft { display: flex; flex-direction: column; gap: 28px; }
 
+.heroLeft > * {
+  min-width: 0;
+}
+
 .heroEyebrow {
   display: flex;
   align-items: center;
@@ -313,18 +307,21 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-bright);
-  border-radius: 14px;
-  padding: 16px 20px;
+  background:
+    radial-gradient(circle at top left, rgba(0,255,128,0.16), transparent 35%),
+    linear-gradient(135deg, rgba(0,255,128,0.10), rgba(0,255,128,0.02) 45%, rgba(255,255,255,0.02));
+  border: 1px solid rgba(0,255,128,0.34);
+  border-radius: 18px;
+  padding: 18px 22px;
   cursor: pointer;
   transition: all 0.22s ease;
   text-align: left;
   width: 100%;
-  max-width: 480px;
+  max-width: 560px;
   animation: fadeUp 0.7s 0.15s ease both;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,255,128,0.08), 0 10px 30px rgba(0,0,0,0.22), var(--glow);
 }
 
 .heroInfoCta::before {
@@ -337,12 +334,26 @@
 
 .heroInfoCta:hover {
   border-color: var(--accent-green);
-  box-shadow: var(--glow-strong);
-  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(0,255,128,0.18), 0 14px 34px rgba(0,0,0,0.28), var(--glow-strong);
+  transform: translateY(-3px);
+}
+
+.heroInfoCtaBadge {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #08110c;
+  background: var(--accent-green);
+  padding: 5px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(0,255,128,0.22);
 }
 
 .heroInfoCtaIcon {
-  font-size: 24px;
+  font-size: 28px;
   color: var(--accent-green);
   flex-shrink: 0;
   line-height: 1;
@@ -355,25 +366,28 @@
   flex-direction: column;
   gap: 3px;
   flex: 1;
+  min-width: 0;
 }
 
 .heroInfoCtaTitle {
   font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
 }
 
 .heroInfoCtaSub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .heroInfoCtaArrow {
-  font-size: 20px;
+  font-size: 24px;
   color: var(--accent-green);
   flex-shrink: 0;
   transition: transform 0.2s;
@@ -697,8 +711,94 @@
 }
 
 @media (max-width: 640px) {
-  .nav    { padding: 16px 20px; }
-  .hero   { padding: 40px 20px; }
+  .nav    {
+    padding: 14px 16px;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .navLogo {
+    width: 100%;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .navLogoText {
+    font-size: 18px;
+  }
+
+  .navRight {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .themeToggle {
+    width: 42px;
+    height: 42px;
+  }
+
+  .hero   {
+    padding: 28px 16px 40px;
+    gap: 28px;
+  }
+
+  .heroLeft {
+    gap: 20px;
+  }
+
+  .heroHeadline {
+    font-size: clamp(42px, 15vw, 64px);
+  }
+
+  .heroCopy {
+    font-size: 15px;
+    max-width: none;
+  }
+
+  .heroInfoCta {
+    max-width: none;
+    padding: 16px 16px 15px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .heroInfoCtaBadge {
+    width: 100%;
+    text-align: center;
+  }
+
+  .heroInfoCtaText {
+    width: 100%;
+  }
+
+  .heroInfoCtaTitle {
+    font-size: 16px;
+  }
+
+  .heroInfoCtaSub {
+    font-size: 10px;
+  }
+
+  .heroInfoCtaArrow {
+    margin-left: auto;
+  }
+
+  .statsRow {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .statItem {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+  }
+
+  .statDivider {
+    display: none;
+  }
+
   .chartCards { flex-direction: column; }
   .features   { grid-template-columns: 1fr; }
   .featureCard { border-right: none; border-top: 1px solid var(--border); }
@@ -1320,12 +1420,37 @@
 }
 
 @media (max-width: 600px) {
+  .infoPage {
+    width: 100%;
+    max-width: none;
+  }
+
+  .infoPageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .infoPageClose {
+    align-self: flex-end;
+  }
+
   .infoTabBar { gap: 0; }
   .infoTab { padding: 12px 14px; font-size: 10px; }
   .infoPageTitle { font-size: 18px; }
+  .infoContent { padding: 18px 16px 22px; }
+  .overviewLead { font-size: 18px; }
+  .overviewBody { font-size: 14px; }
+  .overviewStats { grid-template-columns: 1fr; }
   .overviewPillars { grid-template-columns: 1fr; }
   .modelCardHeadRight { flex-direction: column; align-items: flex-end; gap: 6px; }
   .modelTagline { display: none; }
-  .stackLayerLeft { width: 120px; }
-  .stackLayerTech { font-size: 10px; }
+  .stackLayer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 14px 18px;
+  }
+  .stackLayerLeft { width: auto; flex-shrink: 1; }
+  .stackLayerTech { font-size: 10px; width: 100%; }
 }

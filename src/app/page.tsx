@@ -139,7 +139,7 @@ function InfoPanel({ onClose }: { onClose: () => void }) {
         <header className={styles.infoPageHeader}>
           <div className={styles.infoPageHeaderLeft}>
             <span className={styles.infoPageKicker}>IN$JAM — Platform Documentation</span>
-            <h2 className={styles.infoPageTitle}>I NEVER $ JOKE ABOUT MONEY</h2>
+            <h2 className={styles.infoPageTitle}>Platform Guide</h2>
           </div>
           <button className={styles.infoPageClose} onClick={onClose} aria-label="Close">
             ✕ Close
@@ -472,10 +472,8 @@ export default function Home() {
         <div className={styles.navLogo}>
           <span className={styles.navLogoMark}>▲</span>
           <span className={styles.navLogoText}>IN$JAM</span>
-          <span className={styles.navLogoBadge}>I NEVER $ JOKE ABOUT MONEY</span>
         </div>
         <div className={styles.navRight}>
-          <button className={styles.infoBtn} onClick={() => setInfoOpen(true)}>INFO</button>
           <button className={styles.themeToggle} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
             {theme === 'dark' ? '◑' : '◐'}
           </button>
@@ -513,11 +511,11 @@ export default function Home() {
             Stream only your symbols. Annotate every chart. Build the workspace serious traders actually need.
           </p>
 
-          {/* ── Hero CTA info button ── */}
           <button className={styles.heroInfoCta} onClick={() => setInfoOpen(true)}>
+            <span className={styles.heroInfoCtaBadge}>Platform Guide</span>
             <span className={styles.heroInfoCtaIcon}>⬡</span>
             <span className={styles.heroInfoCtaText}>
-              <span className={styles.heroInfoCtaTitle}>Explore the platform</span>
+              <span className={styles.heroInfoCtaTitle}>Open the full platform guide</span>
               <span className={styles.heroInfoCtaSub}>Models · Indicators · Architecture · How it works</span>
             </span>
             <span className={styles.heroInfoCtaArrow}>→</span>

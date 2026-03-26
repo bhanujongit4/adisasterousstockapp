@@ -339,6 +339,7 @@ export default function StockChart({
   const [paneOverlay, setPaneOverlay] = useState<PaneOverlayState>({ tops: [10, 10], separators: [0] })
 
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
+  const indicatorMenuRef = useRef<HTMLDetailsElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const mainSeriesRef = useRef<ISeriesApi<'Candlestick' | 'Line' | 'Area' | 'Bar' | 'Baseline', Time> | null>(null)
   const anomalyHalfSeriesRef = useRef<ISeriesApi<'Candlestick', Time> | null>(null)
@@ -1250,6 +1251,12 @@ export default function StockChart({
     setHoverDetails(null)
   }, [stock.symbol, timeframe, indicatorLines.length])
 
+  useEffect(() => {
+    if (!isFullscreen && indicatorMenuRef.current) {
+      indicatorMenuRef.current.open = false
+    }
+  }, [isFullscreen])
+
   async function clearAnnotations() {
     setAnnotationsError('')
     try {
@@ -1421,8 +1428,20 @@ export default function StockChart({
           </select>
         </div>
 
-        <details className={styles.indicatorMenu}>
-          <summary className={styles.indicatorSummary}>
+        <details ref={indicatorMenuRef} className={styles.indicatorMenu}>
+          <summary
+            className={`${styles.indicatorSummary} ${!isFullscreen ? styles.indicatorSummaryDisabled : ''}`}
+            onClick={(e) => {
+              if (!isFullscreen) e.preventDefault()
+            }}
+            onKeyDown={(e) => {
+              if (!isFullscreen && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault()
+              }
+            }}
+            aria-disabled={!isFullscreen}
+            title={isFullscreen ? 'Open indicator picker' : 'Open fullscreen to use indicators'}
+          >
             Indicators ({selectedIndicators.length})
           </summary>
           <div className={styles.indicatorGrid}>
