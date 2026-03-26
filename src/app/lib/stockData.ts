@@ -109,20 +109,50 @@ export function getMockStocks(): StockQuote[] {
   return MOCK_BASE.map(s => ({ ...s, history: generateHistory(s.price, s.changePercent) }))
 }
 
+function createEmptyQuote(symbolRaw: string): StockQuote {
+  const symbol = String(symbolRaw).toUpperCase()
+  return {
+    symbol,
+    name: symbol,
+    sector: 'Market',
+    price: 0,
+    change: 0,
+    changePercent: 0,
+    open: 0,
+    high: 0,
+    low: 0,
+    prevClose: 0,
+    volume: 0,
+    avgVolume: 0,
+    history: [],
+  }
+}
+
 export async function fetchStockQuotes(symbols: string[], timeframe: ChartTimeframe = '5m'): Promise<StockQuote[]> {
+  const uniqueSymbols = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))]
+  if (uniqueSymbols.length === 0) return []
+
   try {
-    const res = await fetch(`/api/quotes?symbols=${symbols.join(',')}&timeframe=${timeframe}`)
+    const res = await fetch(`/api/quotes?symbols=${uniqueSymbols.join(',')}&timeframe=${timeframe}`)
     if (!res.ok) throw new Error('API error')
     const data = await res.json()
-    return normalizeApiQuotes(data, symbols)
+    return normalizeApiQuotes(data, uniqueSymbols)
   } catch {
-    return getMockStocks().filter(s => symbols.includes(s.symbol))
+    // Avoid showing fabricated fundamentals when upstream data is unavailable.
+    return uniqueSymbols.map(createEmptyQuote)
   }
 }
 
 function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
   const list = Array.isArray(raw) ? raw : []
-  const fallbackMap = new Map(getMockStocks().map((s) => [s.symbol, s]))
+  const toNumber = (v: unknown): number | undefined => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const toPositive = (v: unknown): number | undefined => {
+    const n = toNumber(v)
+    return n !== undefined && n > 0 ? n : undefined
+  }
 
   const normalized = list
     .filter((q: any) => {
@@ -131,7 +161,6 @@ function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
       return q.found !== false || hasHistory
     })
     .map((q: any): StockQuote => {
-      const fallback = fallbackMap.get(q.symbol)
       const historyRaw = Array.isArray(q.history) ? q.history : []
       const history = historyRaw
         .map((h: any) => {
@@ -141,7 +170,7 @@ function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
           return {
             timestamp: ts,
             time: typeof h?.time === 'string' ? h.time : new Date(ts * 1000).toLocaleString(),
-            price: Number.isFinite(price) ? price : Number(q?.price ?? fallback?.price ?? 0),
+            price: Number.isFinite(price) ? price : Number(q?.price ?? 0),
             volume: Number(h?.volume ?? 0),
             open: Number.isFinite(Number(h?.open)) ? Number(h.open) : undefined,
             high: Number.isFinite(Number(h?.high)) ? Number(h.high) : undefined,
@@ -150,43 +179,74 @@ function normalizeApiQuotes(raw: any, symbols: string[]): StockQuote[] {
         })
         .filter(Boolean) as StockQuote['history']
       history.sort((a, b) => a.timestamp - b.timestamp)
-      const latestHistoryPrice = history.length > 0 ? history[history.length - 1].price : undefined
+      const first = history[0]
+      const last = history.length > 0 ? history[history.length - 1] : undefined
+      const prev = history.length > 1 ? history[history.length - 2] : undefined
+
+      const latestHistoryPrice = last?.price
+      const derivedOpen = toPositive(first?.open ?? first?.price)
+      const derivedHigh = history.reduce<number | undefined>((acc, h) => {
+        const v = toPositive(h.high ?? h.price)
+        if (v === undefined) return acc
+        return acc === undefined ? v : Math.max(acc, v)
+      }, undefined)
+      const derivedLow = history.reduce<number | undefined>((acc, h) => {
+        const v = toPositive(h.low ?? h.price)
+        if (v === undefined) return acc
+        return acc === undefined ? v : Math.min(acc, v)
+      }, undefined)
+      const derivedPrevClose = toPositive(prev?.price ?? first?.open ?? first?.price)
+      const derivedVolume = history.reduce((sum, h) => {
+        const v = toNumber(h.volume) ?? 0
+        return sum + (v > 0 ? v : 0)
+      }, 0)
+
+      const price = toPositive(q.price) ?? toPositive(latestHistoryPrice) ?? 0
+      const prevClose = toPositive(q.prevClose) ?? derivedPrevClose ?? price
+      const open = toPositive(q.open) ?? derivedOpen ?? prevClose
+      const high = toPositive(q.high) ?? derivedHigh ?? Math.max(price, open, prevClose)
+      const low = toPositive(q.low) ?? derivedLow ?? Math.min(price, open, prevClose)
+      const change = toNumber(q.change) ?? (price - prevClose)
+      const changePercent =
+        toNumber(q.changePercent) ??
+        (prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0)
+      const volume = toNumber(q.volume) ?? derivedVolume
+      const avgVolume = toNumber(q.avgVolume) ?? (derivedVolume > 0 ? derivedVolume : 0)
 
       return {
         symbol: String(q.symbol),
-        name: q.name ?? fallback?.name ?? q.symbol,
-        sector: fallback?.sector ?? 'Market',
-        price: Number(q.price ?? latestHistoryPrice ?? fallback?.price ?? 0),
-        change: Number(q.change ?? fallback?.change ?? 0),
-        changePercent: Number(q.changePercent ?? fallback?.changePercent ?? 0),
-        open: Number(q.open ?? fallback?.open ?? 0),
-        high: Number(q.high ?? fallback?.high ?? 0),
-        low: Number(q.low ?? fallback?.low ?? 0),
-        prevClose: Number(q.prevClose ?? fallback?.prevClose ?? 0),
-        volume: Number(q.volume ?? fallback?.volume ?? 0),
-        avgVolume: Number(q.avgVolume ?? fallback?.avgVolume ?? 0),
-        marketCap: q.marketCap ?? fallback?.marketCap,
-        pe: q.pe ?? fallback?.pe,
-        forwardPe: q.forwardPe ?? fallback?.forwardPe,
-        eps: q.eps ?? fallback?.eps,
-        beta: q.beta ?? fallback?.beta,
-        dividendYield: q.dividendYield ?? fallback?.dividendYield,
-        dividendAmount: q.dividendAmount ?? fallback?.dividendAmount,
-        week52High: q.week52High ?? fallback?.week52High,
-        week52Low: q.week52Low ?? fallback?.week52Low,
-        floatShares: q.floatShares ?? fallback?.floatShares,
-        shortRatio: q.shortRatio ?? fallback?.shortRatio,
-        shortFloat: q.shortFloat ?? fallback?.shortFloat,
-        analystRating: q.analystRating ?? fallback?.analystRating,
-        priceTarget: q.priceTarget ?? fallback?.priceTarget,
-        history: history.length > 0 ? history : fallback?.history ?? [],
+        name: q.name ?? q.symbol,
+        sector: 'Market',
+        price,
+        change,
+        changePercent,
+        open,
+        high,
+        low,
+        prevClose,
+        volume,
+        avgVolume,
+        marketCap: q.marketCap,
+        pe: q.pe,
+        forwardPe: q.forwardPe,
+        eps: q.eps,
+        beta: q.beta,
+        dividendYield: q.dividendYield,
+        dividendAmount: q.dividendAmount,
+        week52High: q.week52High,
+        week52Low: q.week52Low,
+        floatShares: q.floatShares,
+        shortRatio: q.shortRatio,
+        shortFloat: q.shortFloat,
+        analystRating: q.analystRating,
+        priceTarget: q.priceTarget,
+        history,
       }
     })
 
   const missing = symbols
     .filter((s) => !normalized.some((q) => q.symbol === s))
-    .map((s) => fallbackMap.get(s))
-    .filter(Boolean) as StockQuote[]
+    .map((s) => createEmptyQuote(s))
 
   return [...normalized, ...missing]
 }

@@ -6,6 +6,7 @@ import { TOP_32_STOCKS, TOP_32_SYMBOLS } from '../../lib/stockData'
 
 export const runtime = 'nodejs'
 const WATCHLIST_LIMIT = 10
+const SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,11}$/
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req)
@@ -31,9 +32,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const symbol = String(body?.symbol ?? '').trim().toUpperCase()
+    let symbol = String(body?.symbol ?? '').trim().toUpperCase()
     if (!symbol) {
       return NextResponse.json({ error: 'Symbol is required.' }, { status: 400 })
+    }
+    if (!SYMBOL_PATTERN.test(symbol)) {
+      return NextResponse.json({ error: 'Invalid symbol format.' }, { status: 400 })
     }
 
     const countRows = await sql`
@@ -45,6 +49,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Watchlist limit is ${WATCHLIST_LIMIT}.` }, { status: 400 })
     }
 
+    const inTop32 = TOP_32_SYMBOLS.includes(symbol)
+    if (!inTop32) {
+      const lookup = await lookupSymbol(symbol)
+      if (lookup.found && lookup.symbol) {
+        symbol = String(lookup.symbol).toUpperCase()
+      }
+    }
+
     const existsRows = await sql`
       select 1
       from user_watchlist
@@ -53,14 +65,6 @@ export async function POST(req: NextRequest) {
     `
     if (existsRows.length > 0) {
       return NextResponse.json({ error: 'Symbol already in your watchlist.' }, { status: 409 })
-    }
-
-    const inTop32 = TOP_32_SYMBOLS.includes(symbol)
-    if (!inTop32) {
-      const lookup = await lookupSymbol(symbol)
-      if (!lookup.found) {
-        return NextResponse.json({ error: `No match found for ${symbol}.` }, { status: 404 })
-      }
     }
 
     await sql`

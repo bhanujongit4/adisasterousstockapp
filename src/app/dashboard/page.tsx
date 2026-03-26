@@ -56,7 +56,7 @@ export default function DashboardPage() {
   } = useStockData({ symbols: watchlistSymbols, enabled: Boolean(user) })
 
   const gainers = [...stocks].sort((a, b) => b.changePercent - a.changePercent).slice(0, 3)
-  const losers = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
+  const losers  = [...stocks].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
 
   const addableTop32 = useMemo(
     () => availableStocks.filter((s) => !watchlistSymbols.includes(s.symbol)),
@@ -70,33 +70,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false
-
     const init = async () => {
       try {
         const res = await fetch('/api/auth/session')
-        if (!res.ok) {
-          if (!cancelled) router.replace('/')
-          return
-        }
-
+        if (!res.ok) { if (!cancelled) router.replace('/'); return }
         const data = await res.json()
-        if (cancelled || !data?.user) {
-          if (!cancelled) router.replace('/')
-          return
-        }
-
+        if (cancelled || !data?.user) { if (!cancelled) router.replace('/'); return }
         setUser(data.user)
         await loadWatchlist()
       } finally {
         if (!cancelled) setSessionChecking(false)
       }
     }
-
     init()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [router])
 
   useEffect(() => {
@@ -112,7 +99,6 @@ export default function DashboardPage() {
   async function loadWatchlist() {
     const res = await fetch('/api/watchlist')
     if (!res.ok) return
-
     const data = (await res.json()) as WatchlistResponse
     setWatchlistSymbols(data.symbols)
     setAvailableStocks(data.available)
@@ -128,7 +114,6 @@ export default function DashboardPage() {
   async function addSymbol(symbolRaw: string) {
     const symbol = symbolRaw.trim().toUpperCase()
     if (!symbol) return
-
     setWatchlistError('')
     const res = await fetch('/api/watchlist', {
       method: 'POST',
@@ -136,12 +121,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ symbol }),
     })
     const data = await res.json()
-
-    if (!res.ok) {
-      setWatchlistError(data?.error ?? 'Could not add symbol.')
-      return
-    }
-
+    if (!res.ok) { setWatchlistError(data?.error ?? 'Could not add symbol.'); return }
     const next = data as WatchlistResponse
     setWatchlistSymbols(next.symbols)
     setAvailableStocks(next.available)
@@ -157,12 +137,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ symbol }),
     })
     const data = await res.json()
-
-    if (!res.ok) {
-      setWatchlistError(data?.error ?? 'Could not remove symbol.')
-      return
-    }
-
+    if (!res.ok) { setWatchlistError(data?.error ?? 'Could not remove symbol.'); return }
     const next = data as WatchlistResponse
     setWatchlistSymbols(next.symbols)
     setAvailableStocks(next.available)
@@ -179,52 +154,61 @@ export default function DashboardPage() {
     return (
       <div className={styles.loading}>
         <div className={styles.loadingDot} />
-        <span>INITIALIZING TERMINAL</span>
+        <span>Initializing IN$JAM</span>
       </div>
     )
   }
 
   return (
     <div className={styles.root}>
+
+      {/* ── NAV ── */}
       <header className={styles.nav}>
         <div className={styles.logo}>
-          <Activity size={16} strokeWidth={2.5} color="var(--green)" />
-          <span className={styles.logoText}>MKTS</span>
-          <span className={styles.logoBadge}>TERMINAL</span>
+          <Activity size={15} strokeWidth={2.5} color="var(--green)" />
+          <span className={styles.logoText}>IN$JAM</span>
+          <span className={styles.logoBadge}>I Never $ Joke About Money</span>
         </div>
+
         <div className={styles.navMeta}>
           <span className={styles.metaItem}>{user.email}</span>
           <span className={styles.metaItem}>
             <span className={styles.metaDot} />
-            LIVE DATA
+            Live
           </span>
           {lastUpdated && (
             <span className={styles.metaItem}>
-              UPDATED {lastUpdated.toLocaleTimeString('en-US', { hour12: false })}
+              {lastUpdated.toLocaleTimeString('en-US', { hour12: false })}
             </span>
           )}
           <button className={styles.refreshBtn} onClick={refresh} title="Refresh">
-            <RefreshCw size={13} />
+            <RefreshCw size={12} />
           </button>
           <button
             className={styles.themeBtn}
-            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-            title={theme === 'dark' ? 'Switch to white mode' : 'Switch to dark mode'}
+            onClick={() => setTheme((p) => (p === 'dark' ? 'light' : 'dark'))}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
-            {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+            {theme === 'dark' ? <Sun size={12} /> : <Moon size={12} />}
           </button>
           <button className={styles.themeBtn} onClick={handleLogout} title="Logout">
-            <LogOut size={13} />
+            <LogOut size={12} />
           </button>
         </div>
       </header>
 
+      {/* ── TICKER ── */}
       <MarketTicker stocks={stocks} />
 
+      {/* ── MAIN LAYOUT ── */}
       <div className={styles.layout}>
+
+        {/* LEFT SIDEBAR */}
         <aside className={styles.sidebar}>
           <div className={styles.watchlistManager}>
-            <div className={styles.managerHead}>MY WATCHLIST ({watchlistSymbols.length}/{watchlistLimit})</div>
+            <div className={styles.managerHead}>
+              Watchlist ({watchlistSymbols.length}/{watchlistLimit})
+            </div>
 
             <div className={styles.managerRow}>
               <select
@@ -236,7 +220,7 @@ export default function DashboardPage() {
                 {addableTop32.length === 0 && <option value="">No top-32 symbols left</option>}
                 {addableTop32.map((s) => (
                   <option key={s.symbol} value={s.symbol}>
-                    {s.symbol} - {s.name}
+                    {s.symbol} — {s.name}
                   </option>
                 ))}
               </select>
@@ -254,7 +238,7 @@ export default function DashboardPage() {
                 className={styles.managerInput}
                 value={manualSymbol}
                 onChange={(e) => setManualSymbol(e.target.value.toUpperCase())}
-                placeholder="Type symbol (ex: IBM)"
+                placeholder="Symbol (e.g. IBM)"
                 maxLength={12}
               />
               <button
@@ -262,38 +246,57 @@ export default function DashboardPage() {
                 onClick={handleManualAdd}
                 disabled={watchlistSymbols.length >= watchlistLimit}
               >
-                Find + Add
+                Find
               </button>
             </div>
 
-            {watchlistError && <div className={styles.watchlistError}>{watchlistError}</div>}
+            {watchlistError && (
+              <div className={styles.watchlistError}>{watchlistError}</div>
+            )}
 
             <div className={styles.symbolPills}>
               {watchlistSymbols.map((symbol) => (
-                <button key={symbol} className={styles.symbolPill} onClick={() => removeSymbol(symbol)} title="Remove from watchlist">
-                  {symbol} x
+                <button
+                  key={symbol}
+                  className={styles.symbolPill}
+                  onClick={() => removeSymbol(symbol)}
+                  title="Remove"
+                >
+                  {symbol} ×
                 </button>
               ))}
             </div>
           </div>
 
-          <WatchlistPanel stocks={stocks} selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} />
+          <WatchlistPanel
+            stocks={stocks}
+            selectedSymbol={selectedSymbol}
+            onSelect={setSelectedSymbol}
+          />
         </aside>
 
+        {/* CENTER */}
         <main className={styles.center}>
           {watchlistSymbols.length === 0 ? (
-            <div className={styles.emptyState}>Add symbols to your watchlist to start live updates.</div>
+            <div className={styles.emptyState}>
+              Add symbols to your watchlist to begin.
+            </div>
           ) : (
             selectedStock && (
               <>
                 <MarketStats stock={selectedStock} />
-                <StockSignalCard ticker={selectedStock.symbol} onAnomalyOverlayChange={setAnomalyMarkers} />
+                <StockSignalCard
+                  ticker={selectedStock.symbol}
+                  onAnomalyOverlayChange={setAnomalyMarkers}
+                />
                 <div className={styles.chartArea}>
                   <div className={styles.chartHeader}>
                     <span className={styles.chartLabel}>
-                      {selectedStock.symbol} - {timeframe.toUpperCase()} VIEW
+                      {selectedStock.symbol} — {timeframe.toUpperCase()}
                     </span>
-                    <span className={styles.chartSub}>PREV CLOSE: ${selectedStock.prevClose.toFixed(2)}</span>
+                    <span className={styles.chartSub}>
+                      Prev Close ${selectedStock.prevClose.toFixed(2)}
+                    </span>
                   </div>
                   <div className={styles.chartBody}>
                     <StockChart
@@ -312,9 +315,10 @@ export default function DashboardPage() {
           )}
         </main>
 
+        {/* RIGHT PANEL */}
         <aside className={styles.rightPanel}>
-          <MoverList title="TOP GAINERS" stocks={gainers} type="up" onSelect={setSelectedSymbol} />
-          <MoverList title="TOP LOSERS" stocks={losers} type="down" onSelect={setSelectedSymbol} />
+          <MoverList title="Top Gainers" stocks={gainers} type="up"   onSelect={setSelectedSymbol} />
+          <MoverList title="Top Losers"  stocks={losers}  type="down" onSelect={setSelectedSymbol} />
           <MarketSummary stocks={stocks} />
         </aside>
       </div>
@@ -322,11 +326,9 @@ export default function DashboardPage() {
   )
 }
 
+/* ── MOVER LIST ── */
 function MoverList({
-  title,
-  stocks,
-  type,
-  onSelect,
+  title, stocks, type, onSelect,
 }: {
   title: string
   stocks: StockQuote[]
@@ -334,13 +336,13 @@ function MoverList({
   onSelect: (s: string) => void
 }) {
   const color = type === 'up' ? 'var(--green)' : 'var(--red)'
-  const Icon = type === 'up' ? TrendingUp : TrendingDown
+  const Icon  = type === 'up' ? TrendingUp : TrendingDown
 
   return (
     <div className={styles.moverBlock}>
       <div className={styles.moverHeader}>
-        <Icon size={12} color={color} />
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>{title}</span>
+        <Icon size={11} color={color} />
+        <span>{title}</span>
       </div>
       {stocks.map((s) => (
         <button key={s.symbol} className={styles.moverItem} onClick={() => onSelect(s.symbol)}>
@@ -348,15 +350,11 @@ function MoverList({
           <div className={styles.moverBar}>
             <div
               className={styles.moverFill}
-              style={{
-                width: `${Math.min(100, Math.abs(s.changePercent) * 20)}%`,
-                background: color,
-              }}
+              style={{ width: `${Math.min(100, Math.abs(s.changePercent) * 20)}%`, background: color }}
             />
           </div>
           <span className={`num ${styles.moverPct}`} style={{ color }}>
-            {type === 'up' ? '+' : ''}
-            {s.changePercent.toFixed(2)}%
+            {type === 'up' ? '+' : ''}{s.changePercent.toFixed(2)}%
           </span>
         </button>
       ))}
@@ -364,8 +362,9 @@ function MoverList({
   )
 }
 
+/* ── MARKET BREADTH ── */
 function MarketSummary({ stocks }: { stocks: StockQuote[] }) {
-  const up = stocks.filter((s) => s.changePercent > 0).length
+  const up   = stocks.filter((s) => s.changePercent > 0).length
   const down = stocks.filter((s) => s.changePercent < 0).length
   const flat = stocks.length - up - down
   const pctUp = stocks.length > 0 ? ((up / stocks.length) * 100).toFixed(0) : '0'
@@ -373,25 +372,17 @@ function MarketSummary({ stocks }: { stocks: StockQuote[] }) {
   return (
     <div className={styles.moverBlock}>
       <div className={styles.moverHeader}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
-          MARKET BREADTH
-        </span>
+        <span>Market Breadth</span>
       </div>
       <div className={styles.breadthBar}>
-        <div className={styles.breadthUp} style={{ flex: up }} title={`${up} advancing`} />
+        <div className={styles.breadthUp}   style={{ flex: up }}   title={`${up} advancing`} />
         <div className={styles.breadthFlat} style={{ flex: flat }} />
-        <div className={styles.breadthDown} style={{ flex: down }} title={`${down} declining`} />
+        <div className={styles.breadthDown} style={{ flex: down }}  title={`${down} declining`} />
       </div>
       <div className={styles.breadthLabels}>
-        <span className="num" style={{ color: 'var(--green)', fontSize: 11 }}>
-          UP {up}
-        </span>
-        <span className="num" style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-          {pctUp}% advancing
-        </span>
-        <span className="num" style={{ color: 'var(--red)', fontSize: 11 }}>
-          DOWN {down}
-        </span>
+        <span className="num" style={{ color: 'var(--green)', fontSize: 11 }}>↑ {up}</span>
+        <span className="num" style={{ color: 'var(--text-muted)', fontSize: 11 }}>{pctUp}% up</span>
+        <span className="num" style={{ color: 'var(--red)', fontSize: 11 }}>↓ {down}</span>
       </div>
     </div>
   )

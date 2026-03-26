@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MKTS — Market Terminal',
-  description: 'Real-time stock market analysis terminal',
+  title: 'IN$JAM - I Never $ Joke About Money',
+  description: 'IN$JAM trading workspace and market analysis dashboard',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

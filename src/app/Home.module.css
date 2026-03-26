@@ -37,6 +37,23 @@
   transition: background 0.35s ease, color 0.35s ease;
 }
 
+.root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(5, 8, 6, 0.82), rgba(5, 8, 6, 0.82)),
+    url('/moneyimg.jpg') center center / cover no-repeat;
+}
+
+.rootLight::before {
+  background:
+    linear-gradient(rgba(238, 244, 240, 0.84), rgba(238, 244, 240, 0.84)),
+    url('/kingvon.jpg') center center / cover no-repeat;
+}
+
 /* ══════════════════════════════════════════
    DESIGN TOKENS — light override on .rootLight
 ══════════════════════════════════════════ */
@@ -68,7 +85,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
   opacity: 0.9;
 }
 
@@ -724,5 +741,142 @@
   .horrorLine { font-size: 15px; }
   .horrorMessage {
     padding: 0;
+  }
+}
+
+/* --- INFO UI --- */
+.infoBtn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.infoBtn:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: var(--glow);
+}
+
+.infoOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+
+.infoBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 6, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.infoPanel {
+  position: relative;
+  width: min(1200px, 100%);
+  max-height: min(92vh, 980px);
+  overflow: auto;
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  border: 1px solid var(--border-bright);
+  border-radius: 16px;
+  box-shadow: var(--glow-strong);
+  padding: 18px;
+}
+
+.infoHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.infoKicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.infoTitle {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.8vw, 34px);
+  line-height: 1.08;
+  color: var(--text-primary);
+}
+
+.infoClose {
+  border: 1px solid var(--border-bright);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.infoClose:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.infoCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+}
+
+.infoCardTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.infoList {
+  display: grid;
+  gap: 8px;
+}
+
+.infoPoint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .infoPanel {
+    padding: 14px;
+    max-height: 94vh;
+  }
+
+  .infoPoint {
+    font-size: 12px;
   }
 }
