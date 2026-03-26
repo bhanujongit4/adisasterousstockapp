@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid var(--border);
   background: var(--bg-secondary);
 }
 
@@ -10,42 +9,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 10px;
+  padding: 0.62rem 0.72rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--text-muted);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   flex-shrink: 0;
 }
 
 .count {
-  background: var(--border-bright);
+  background: color-mix(in srgb, var(--bg-card-hover) 90%, transparent);
   color: var(--text-secondary);
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 9px;
+  padding: 0.14rem 0.46rem;
+  border-radius: 99px;
+  font-size: 0.68rem;
 }
 
 .list {
   overflow-y: auto;
   flex: 1;
+  padding: 0 0.35rem 0.35rem;
 }
 
 .item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 0.42rem;
+  padding: 0.55rem 0.62rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.12s;
   position: relative;
   text-align: left;
+  border-radius: 0.24rem;
 }
 
 .item:hover {
@@ -53,8 +52,7 @@
 }
 
 .selected {
-  background: var(--bg-card) !important;
-  border-left: 2px solid var(--blue);
+  background: color-mix(in srgb, var(--green-muted) 75%, var(--bg-card)) !important;
 }
 
 .left {
@@ -63,17 +61,17 @@
 }
 
 .symbol {
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .name {
-  font-size: 10px;
+  font-size: 0.76rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 0.12rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -85,13 +83,13 @@
 }
 
 .price {
-  font-size: 12px;
+  font-size: 0.88rem;
   color: var(--text-primary);
 }
 
 .change {
-  font-size: 10px;
-  margin-top: 2px;
+  font-size: 0.74rem;
+  margin-top: 0.1rem;
 }
 
 .up { color: var(--green); }
@@ -101,8 +99,8 @@
   display: flex;
   align-items: flex-end;
   gap: 1px;
-  height: 28px;
-  width: 36px;
+  height: 1.5rem;
+  width: 2rem;
   flex-shrink: 0;
 }
 

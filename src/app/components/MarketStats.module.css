@@ -1,45 +1,46 @@
 .wrapper {
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
+  background: var(--bg-tertiary);
   flex-shrink: 0;
+  border-radius: 0.3rem;
+  margin: 0.55rem;
+  margin-bottom: 0.4rem;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 14px 20px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 0.8rem 0.9rem 0.65rem;
 }
 
 .topLine {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.45rem;
 }
 
 .symbol {
-  font-family: var(--font-mono);
-  font-size: 20px;
+  font-family: var(--font-sans);
+  font-size: 1.28rem;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
 }
 
 .sector {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--blue);
-  border: 1px solid rgba(77,159,255,0.3);
-  padding: 2px 7px;
-  border-radius: 3px;
-  letter-spacing: 0.08em;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  color: var(--green);
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.2rem;
+  letter-spacing: 0.07em;
+  background: color-mix(in srgb, var(--green-muted) 88%, transparent);
 }
 
 .name {
-  font-size: 11px;
+  font-size: 0.86rem;
   color: var(--text-secondary);
-  margin-top: 3px;
+  margin-top: 0.1rem;
 }
 
 .priceBlock {
@@ -47,63 +48,64 @@
 }
 
 .price {
-  font-size: 24px;
+  font-size: 1.9rem;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
 }
 
 .change {
-  font-size: 12px;
-  margin-top: 3px;
+  font-size: 0.9rem;
+  margin-top: 0.16rem;
 }
 
 .rating {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  margin-top: 4px;
-  letter-spacing: 0.05em;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  margin-top: 0.2rem;
+  letter-spacing: 0.03em;
   font-weight: 600;
 }
 
-.up   { color: var(--green); }
+.up { color: var(--green); }
 .down { color: var(--red); }
 
-/* scrollable stats area */
 .statsScroll {
   overflow-y: auto;
   max-height: 180px;
+  padding: 0 0.45rem 0.45rem;
+  display: grid;
+  gap: 0.3rem;
 }
 
 .row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid var(--border);
-}
-
-.row:last-child {
-  border-bottom: none;
+  gap: 0.3rem;
 }
 
 .stat {
-  padding: 8px 14px;
-  border-right: 1px solid var(--border);
-}
-
-.stat:last-child {
-  border-right: none;
+  padding: 0.45rem 0.52rem;
+  border-radius: 0.2rem;
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
 }
 
 .statLabel {
-  font-family: var(--font-mono);
-  font-size: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
   color: var(--text-muted);
-  letter-spacing: 0.12em;
-  margin-bottom: 3px;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.16rem;
 }
 
 .statValue {
-  font-size: 12px;
+  font-size: 0.86rem;
   font-weight: 500;
   color: var(--text-primary);
+}
+
+@media (max-width: 760px) {
+  .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

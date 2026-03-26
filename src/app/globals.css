@@ -1,62 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #070707;
-  --bg-secondary: #111111;
-  --bg-tertiary: #181818;
-  --bg-card: #151515;
-  --bg-card-hover: #1e1e1e;
-  --border: #2a2a2a;
-  --border-bright: #3b3b3b;
+  --surface: #121315;
+  --surface-container-low: #1b1c1e;
+  --surface-container: #1f2022;
+  --surface-container-high: #292a2c;
+  --surface-container-highest: #343537;
 
-  --green: #29c38a;
-  --green-dim: #1d9d70;
-  --green-muted: rgba(41, 195, 138, 0.12);
-  --red: #e15a67;
-  --red-dim: #bc4452;
-  --red-muted: rgba(225, 90, 103, 0.14);
-  --amber: #d8a34f;
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--surface-container-low);
+  --bg-tertiary: var(--surface-container);
+  --bg-card: var(--surface-container);
+  --bg-card-hover: var(--surface-container-high);
+  --border: rgba(60, 74, 66, 0.14);
+  --border-bright: rgba(60, 74, 66, 0.24);
 
-  --text-primary: #ececec;
-  --text-secondary: #c5c5c5;
-  --text-muted: #8f8f8f;
-  --text-accent: #f3f3f3;
-  --overlay-panel-bg: rgba(20, 20, 20, 0.94);
-  --overlay-panel-border: rgba(190, 190, 190, 0.34);
-  --overlay-panel-text: #efefef;
-  --overlay-danger-bg: rgba(127, 29, 29, 0.92);
-  --overlay-danger-border: rgba(248, 113, 113, 0.8);
+  --green: #4edea3;
+  --green-dim: #38c48e;
+  --green-muted: rgba(78, 222, 163, 0.12);
+  --red: #ff7a73;
+  --red-dim: #e36b65;
+  --red-muted: rgba(255, 122, 115, 0.14);
+  --amber: #d4b067;
+
+  --text-primary: #e3e2e5;
+  --text-secondary: #b7bbc0;
+  --text-muted: #8f959d;
+  --text-accent: #d9f8ea;
+  --overlay-panel-bg: rgba(52, 53, 55, 0.6);
+  --overlay-panel-border: rgba(60, 74, 66, 0.2);
+  --overlay-panel-text: #e3e2e5;
+  --overlay-danger-bg: rgba(68, 37, 37, 0.9);
+  --overlay-danger-border: rgba(255, 122, 115, 0.45);
 
   --font-mono: 'IBM Plex Mono', monospace;
-  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-sans: 'Inter', 'SF Pro Text', 'SF Pro Display', sans-serif;
 }
 
 html[data-theme='light'] {
-  --bg-primary: #f4f6f8;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f4f7;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f6f8fb;
-  --border: #d8dde7;
-  --border-bright: #c3ccda;
+  --surface: #f4f7fb;
+  --surface-container-low: #e8eef5;
+  --surface-container: #dde6ef;
+  --surface-container-high: #ced9e5;
+  --surface-container-highest: #c2cfdd;
 
-  --green: #0f9f70;
-  --green-dim: #0b7f59;
-  --green-muted: rgba(15, 159, 112, 0.12);
-  --red: #c84754;
-  --red-dim: #a83845;
-  --red-muted: rgba(200, 71, 84, 0.14);
-  --amber: #b9822f;
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--surface-container-low);
+  --bg-tertiary: var(--surface-container);
+  --bg-card: var(--surface-container);
+  --bg-card-hover: var(--surface-container-high);
+  --border: rgba(50, 65, 79, 0.14);
+  --border-bright: rgba(50, 65, 79, 0.24);
 
-  --text-primary: #172131;
-  --text-secondary: #344761;
-  --text-muted: #5c6e85;
-  --text-accent: #1b2e4a;
-  --overlay-panel-bg: rgba(255, 255, 255, 0.96);
-  --overlay-panel-border: rgba(149, 161, 181, 0.45);
-  --overlay-panel-text: #1f2d3f;
-  --overlay-danger-bg: rgba(227, 72, 91, 0.92);
-  --overlay-danger-border: rgba(187, 44, 64, 0.8);
+  --green: #0f8a62;
+  --green-dim: #0b7351;
+  --green-muted: rgba(18, 143, 102, 0.12);
+  --red: #c04a45;
+  --red-dim: #a33e3a;
+  --red-muted: rgba(197, 79, 73, 0.14);
+  --amber: #8b6a2f;
+
+  --text-primary: #17212b;
+  --text-secondary: #2a3a4a;
+  --text-muted: #4e5f72;
+  --text-accent: #153528;
+  --overlay-panel-bg: rgba(244, 248, 252, 0.92);
+  --overlay-panel-border: rgba(45, 62, 78, 0.18);
+  --overlay-panel-text: #1b232d;
+  --overlay-danger-bg: rgba(195, 98, 96, 0.94);
+  --overlay-danger-border: rgba(149, 53, 49, 0.45);
 }
 
 * {
@@ -71,7 +83,7 @@ html {
 }
 
 body {
-  background: var(--bg-primary);
+  background: radial-gradient(1200px 560px at 100% -20%, rgba(78, 222, 163, 0.06), transparent 58%), var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -88,7 +100,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-bright);
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
   border-radius: 999px;
 }
 
@@ -99,4 +111,3 @@ body {
 .up { color: var(--green); }
 .down { color: var(--red); }
 .flat { color: var(--text-secondary); }
-

@@ -207,7 +207,7 @@ const EMPTY_ANNOTATIONS: StoredAnnotations = {
   notes: [],
 }
 
-const INDICATOR_COLORS = ['#29c38a', '#e3a548', '#e06d78', '#9aa6bb', '#7bc5a2', '#c7a76a', '#b08ad2', '#7f8ca2', '#89b9a6']
+const INDICATOR_COLORS = ['#4edea3', '#d4b067', '#ff7a73', '#8aa6c2', '#89d9ba', '#b9b0ff', '#8fa39a', '#9ec6e6', '#c6d183']
 const DEFAULT_PANE_FACTORS: Record<number, number[]> = {
   2: [0.78, 0.22],
   3: [0.62, 0.18, 0.2],
@@ -341,6 +341,7 @@ export default function StockChart({
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const mainSeriesRef = useRef<ISeriesApi<'Candlestick' | 'Line' | 'Area' | 'Bar' | 'Baseline', Time> | null>(null)
+  const anomalyHalfSeriesRef = useRef<ISeriesApi<'Candlestick', Time> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram', Time> | null>(null)
   const markerPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   const trendlineSeriesRef = useRef<Map<string, ISeriesApi<'Line', Time>>>(new Map())
@@ -411,7 +412,7 @@ export default function StockChart({
     return {
       time: asUtcTimestamp(item.timestamp),
       value: item.volume,
-      color: item.close >= item.open ? 'rgba(20, 184, 166, 0.48)' : 'rgba(239, 68, 68, 0.48)',
+      color: item.close >= item.open ? 'rgba(78, 222, 163, 0.34)' : 'rgba(255, 122, 115, 0.34)',
     }
   })), [aggregatedHistory])
 
@@ -510,6 +511,22 @@ export default function StockChart({
   useEffect(() => {
     anomalyByTimeRef.current = anomalyByTime
   }, [anomalyByTime])
+
+  const anomalyHalfCandleData = useMemo(() => {
+    return ohlcData.flatMap((bar) => {
+      const ts = Number(bar.time)
+      if (!anomalyByTime.has(ts)) return []
+
+      const midpoint = Number(((bar.open + bar.close) / 2).toFixed(4))
+      return [{
+        time: bar.time,
+        open: midpoint,
+        high: Math.max(midpoint, bar.close),
+        low: Math.min(midpoint, bar.close),
+        close: bar.close,
+      }]
+    })
+  }, [anomalyByTime, ohlcData])
 
   async function loadAnnotations(symbol: string) {
     setAnnotationsLoading(true)
@@ -716,24 +733,25 @@ export default function StockChart({
     const chartContainer = chartContainerRef.current
     if (!chartContainer) return
     const rootStyle = getComputedStyle(document.documentElement)
-    const bgSecondary = rootStyle.getPropertyValue('--bg-secondary').trim() || '#0c0e11'
+    const bgSecondary = rootStyle.getPropertyValue('--bg-secondary').trim() || '#1b1c1e'
+    const bgTertiary = rootStyle.getPropertyValue('--bg-tertiary').trim() || '#1f2022'
     const textSecondary = rootStyle.getPropertyValue('--text-secondary').trim() || '#98a5b9'
-    const border = rootStyle.getPropertyValue('--border').trim() || '#242a35'
-    const borderBright = rootStyle.getPropertyValue('--border-bright').trim() || '#343e4d'
-    const green = rootStyle.getPropertyValue('--green').trim() || '#29c38a'
-    const red = rootStyle.getPropertyValue('--red').trim() || '#e15a67'
+    const border = rootStyle.getPropertyValue('--border').trim() || 'rgba(60,74,66,0.14)'
+    const borderBright = rootStyle.getPropertyValue('--border-bright').trim() || 'rgba(60,74,66,0.24)'
+    const green = rootStyle.getPropertyValue('--green').trim() || '#4edea3'
+    const red = rootStyle.getPropertyValue('--red').trim() || '#ff7a73'
 
     const chart = createChart(chartContainer, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: bgSecondary },
+        background: { type: ColorType.Solid, color: bgTertiary },
         textColor: textSecondary,
-        fontFamily: 'IBM Plex Sans, sans-serif',
+        fontFamily: 'Inter, SF Pro Text, sans-serif',
         attributionLogo: false,
         panes: {
           enableResize: true,
-          separatorColor: borderBright,
-          separatorHoverColor: textSecondary,
+          separatorColor: border,
+          separatorHoverColor: borderBright,
         },
       },
       rightPriceScale: {
@@ -746,6 +764,8 @@ export default function StockChart({
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
+        vertLine: { color: borderBright, width: 1, style: LineStyle.Dashed, labelVisible: true },
+        horzLine: { color: borderBright, width: 1, style: LineStyle.Dashed, labelVisible: true },
       },
       timeScale: {
         borderColor: border,
@@ -779,6 +799,16 @@ export default function StockChart({
         wickUpColor: green,
         wickDownColor: red,
       })
+      anomalyHalfSeriesRef.current = chart.addSeries(CandlestickSeries, {
+        upColor: '#f5d94e',
+        downColor: '#f5d94e',
+        borderUpColor: '#f5d94e',
+        borderDownColor: '#f5d94e',
+        wickUpColor: 'rgba(0,0,0,0)',
+        wickDownColor: 'rgba(0,0,0,0)',
+        priceLineVisible: false,
+        lastValueVisible: false,
+      })
     } else if (chartType === 'line') {
       mainSeries = chart.addSeries(LineSeries, {
         color: isUpDay ? green : red,
@@ -787,7 +817,7 @@ export default function StockChart({
     } else if (chartType === 'area') {
       mainSeries = chart.addSeries(AreaSeries, {
         lineColor: isUpDay ? green : red,
-        topColor: isUpDay ? 'rgba(41,195,138,0.24)' : 'rgba(225,90,103,0.24)',
+        topColor: isUpDay ? 'rgba(78,222,163,0.2)' : 'rgba(255,122,115,0.2)',
         bottomColor: 'rgba(0,0,0,0)',
         lineWidth: 2,
       })
@@ -799,11 +829,11 @@ export default function StockChart({
     } else {
       mainSeries = chart.addSeries(BaselineSeries, {
         topLineColor: green,
-        topFillColor1: 'rgba(41,195,138,0.24)',
-        topFillColor2: 'rgba(41,195,138,0.06)',
+        topFillColor1: 'rgba(78,222,163,0.2)',
+        topFillColor2: 'rgba(78,222,163,0.04)',
         bottomLineColor: red,
-        bottomFillColor1: 'rgba(225,90,103,0.06)',
-        bottomFillColor2: 'rgba(225,90,103,0.24)',
+        bottomFillColor1: 'rgba(255,122,115,0.04)',
+        bottomFillColor2: 'rgba(255,122,115,0.2)',
         baseValue: { type: 'price', price: stock.prevClose },
         lineWidth: 2,
       })
@@ -1010,6 +1040,7 @@ export default function StockChart({
       chart.remove()
       chartRef.current = null
       mainSeriesRef.current = null
+      anomalyHalfSeriesRef.current = null
       volumeSeriesRef.current = null
       markerPluginRef.current = null
       trendlineSeriesRef.current.clear()
@@ -1025,9 +1056,12 @@ export default function StockChart({
     } else {
       mainSeriesRef.current.setData(lineLikeData as never[])
     }
+    if (chartType === 'candlestick' && anomalyHalfSeriesRef.current) {
+      anomalyHalfSeriesRef.current.setData(anomalyHalfCandleData as never[])
+    }
     volumeSeriesRef.current.setData(volumeData)
 
-  }, [chartType, lineLikeData, ohlcData, volumeData])
+  }, [anomalyHalfCandleData, chartType, lineLikeData, ohlcData, volumeData])
 
   useEffect(() => {
     chartRef.current?.timeScale().fitContent()
@@ -1129,10 +1163,10 @@ export default function StockChart({
     const panes = chartRef.current.panes()
     const hasOscillator = indicatorLines.some((line) => line.pane === 'oscillator')
     const expectedPaneCount = hasOscillator ? 3 : 2
-    if (panes.length >= expectedPaneCount && lastPaneCountRef.current !== expectedPaneCount) {
+    if (panes.length >= expectedPaneCount) {
       applyPaneFactors(expectedPaneCount)
-      lastPaneCountRef.current = expectedPaneCount
     }
+    lastPaneCountRef.current = expectedPaneCount
     syncPaneOverlay()
   }, [indicatorLines])
 
