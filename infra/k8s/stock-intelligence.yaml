@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stock-intel
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stock-intelligence
+  namespace: stock-intel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stock-intelligence
+  template:
+    metadata:
+      labels:
+        app: stock-intelligence
+    spec:
+      containers:
+        - name: stock-intelligence
+          image: stock-intelligence:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-intelligence
+  namespace: stock-intel
+spec:
+  selector:
+    app: stock-intelligence
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080
+  type: NodePort
