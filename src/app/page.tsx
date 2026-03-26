@@ -5,95 +5,104 @@ import { useRouter } from 'next/navigation'
 import styles from './Home.module.css'
 
 const TICKERS = [
-  { sym: 'AAPL', price: '213.49', change: '+1.24', up: true },
-  { sym: 'NVDA', price: '137.62', change: '+3.87', up: true },
-  { sym: 'TSLA', price: '248.50', change: '-4.12', up: false },
-  { sym: 'MSFT', price: '421.90', change: '+0.78', up: true },
-  { sym: 'GOOG', price: '178.25', change: '+2.11', up: true },
-  { sym: 'AMZN', price: '224.18', change: '-1.03', up: false },
-  { sym: 'META', price: '623.44', change: '+5.33', up: true },
-  { sym: 'BRK.B', price: '472.90', change: '+0.22', up: true },
-  { sym: 'JPM', price: '257.11', change: '-0.89', up: false },
-  { sym: 'V', price: '340.67', change: '+1.55', up: true },
-  { sym: 'SPY', price: '591.80', change: '+0.47', up: true },
-  { sym: 'QQQ', price: '510.33', change: '+1.02', up: true },
-  { sym: 'GLD', price: '238.45', change: '-0.31', up: false },
-  { sym: 'BTC', price: '103,240', change: '+2.88', up: true },
-  { sym: 'ETH', price: '3,412', change: '-1.14', up: false },
+  { sym: 'AAPL',  price: '213.49',   change: '+1.24', up: true  },
+  { sym: 'NVDA',  price: '137.62',   change: '+3.87', up: true  },
+  { sym: 'TSLA',  price: '248.50',   change: '-4.12', up: false },
+  { sym: 'MSFT',  price: '421.90',   change: '+0.78', up: true  },
+  { sym: 'GOOG',  price: '178.25',   change: '+2.11', up: true  },
+  { sym: 'AMZN',  price: '224.18',   change: '-1.03', up: false },
+  { sym: 'META',  price: '623.44',   change: '+5.33', up: true  },
+  { sym: 'BRK.B', price: '472.90',   change: '+0.22', up: true  },
+  { sym: 'JPM',   price: '257.11',   change: '-0.89', up: false },
+  { sym: 'V',     price: '340.67',   change: '+1.55', up: true  },
+  { sym: 'SPY',   price: '591.80',   change: '+0.47', up: true  },
+  { sym: 'QQQ',   price: '510.33',   change: '+1.02', up: true  },
+  { sym: 'GLD',   price: '238.45',   change: '-0.31', up: false },
+  { sym: 'BTC',   price: '103,240',  change: '+2.88', up: true  },
+  { sym: 'ETH',   price: '3,412',    change: '-1.14', up: false },
 ]
 
-const FEATURES = [
+// ── Info panel data ────────────────────────────────────────────────────────────
+
+const STACK_LAYERS = [
+  { label: 'Frontend',    tech: 'Next.js · React · TypeScript · CSS Modules',   color: '#00ff80' },
+  { label: 'Charts',      tech: 'lightweight-charts · custom pane overlays',     color: '#00cc66' },
+  { label: 'API Routes',  tech: 'Next.js handlers · auth · watchlist · signals', color: '#009944' },
+  { label: 'Database',    tech: 'Neon Postgres · signed-cookie sessions',         color: '#006630' },
+  { label: 'Intelligence',tech: 'Python · FastAPI · pandas · scikit-learn · hmmlearn', color: '#004422' },
+  { label: 'Data',        tech: 'Yahoo Finance · normalised OHLCV payload',      color: '#002211' },
+]
+
+const INDICATORS = [
+  { name: 'SMA',    cat: 'Trend'      },
+  { name: 'EMA',    cat: 'Trend'      },
+  { name: 'WMA',    cat: 'Trend'      },
+  { name: 'VWAP',   cat: 'Trend'      },
+  { name: 'PSAR',   cat: 'Trend'      },
+  { name: 'Ichimoku', cat: 'Trend'    },
+  { name: 'Keltner',  cat: 'Volatility'},
+  { name: 'Bollinger Bands', cat: 'Volatility'},
+  { name: 'ATR',    cat: 'Volatility' },
+  { name: 'RSI',    cat: 'Momentum'   },
+  { name: 'MACD',   cat: 'Momentum'   },
+  { name: 'Stochastic', cat: 'Momentum'},
+  { name: 'Williams %R', cat: 'Momentum'},
+  { name: 'CCI',    cat: 'Momentum'   },
+  { name: 'ROC',    cat: 'Momentum'   },
+  { name: 'TRIX',   cat: 'Momentum'   },
+  { name: 'ADX',    cat: 'Momentum'   },
+  { name: 'Awesome Oscillator', cat: 'Momentum'},
+  { name: 'OBV',    cat: 'Volume'     },
+  { name: 'ADL',    cat: 'Volume'     },
+  { name: 'MFI',    cat: 'Volume'     },
+  { name: 'Force Index', cat: 'Volume'},
+]
+
+const MODELS = [
   {
-    icon: '*',
-    title: 'Live Market Stream',
-    desc: 'Real-time quotes filtered to your active watchlist. Zero noise, pure signal.',
+    id:       'regime',
+    name:     'Regime Model',
+    badge:    'HMM + Hurst + ADX',
+    tagline:  'What state is the market in right now?',
+    outputs:  ['TRENDING_UP', 'TRENDING_DOWN', 'MEAN_REVERTING', 'VOLATILE', 'DEAD', 'UNCERTAIN'],
+    engines: [
+      { name: 'HMM',            desc: 'Latent-state inference on returns + volatility' },
+      { name: 'Hurst Exponent', desc: 'Persistence vs mean-reversion classification' },
+      { name: 'ADX',            desc: 'Trend strength + directional confirmation' },
+      { name: 'Vol Percentile', desc: 'Extreme volatility override signal' },
+    ],
   },
   {
-    icon: '[]',
-    title: 'Smart Watchlists',
-    desc: 'Build and manage symbol lists with manual symbol add, quick remove, and fast switching.',
+    id:       'anomaly',
+    name:     'Anomaly Model',
+    badge:    'Isolation Forest + CUSUM + Z',
+    tagline:  'Which candles are statistically impossible?',
+    outputs:  ['CRITICAL', 'WARNING', 'WATCH', 'NORMAL'],
+    engines: [
+      { name: 'Isolation Forest', desc: 'Multivariate outlier scoring across all features' },
+      { name: 'Rolling Z-Score',  desc: 'Local contextual deviation, adaptive window' },
+      { name: 'CUSUM',            desc: 'Cumulative-sum structural mean-shift detection' },
+      { name: 'Score Fusion',     desc: 'Weighted ensemble → percentile → severity' },
+    ],
   },
   {
-    icon: '/\\',
-    title: 'Chart Workspace',
-    desc: 'Candles, indicators, panes, overlays, and annotation tools built for active analysis.',
-  },
-  {
-    icon: '+',
-    title: 'Signal Models',
-    desc: 'Regime, microstructure, and anomaly engines with interpretable outputs.',
+    id:       'micro',
+    name:     'Microstructure',
+    badge:    'Congestion + Latency',
+    tagline:  'How is the order flow behaving intraday?',
+    outputs:  ['CONGESTED', 'FLOWING', 'DIRECTIONAL', 'LATENT'],
+    engines: [
+      { name: 'Congestion Score', desc: 'Intraday spread + range compression index' },
+      { name: 'Latency Regime',   desc: 'Pace-of-trade relative to historical norms' },
+      { name: 'Directional Flow', desc: 'Signed volume imbalance trend detection' },
+    ],
   },
 ]
 
-const INFO_SECTIONS = [
-  {
-    title: 'Platform Overview',
-    points: [
-      'IN$JAM is a single-screen market analysis terminal that combines watchlists, live quotes, charting, indicators, and model-generated signals.',
-      'The product is built for speed of decision: symbol discovery, chart analysis, and model interpretation happen in one flow.',
-      'Design goal: reduce context-switching and keep high-value market information visible without opening multiple tools.',
-    ],
-  },
-  {
-    title: 'How To Use',
-    points: [
-      '1) Add symbols from top picks or manual symbol input in the watchlist manager.',
-      '2) Select a symbol to refresh the stats panel, chart area, and signal lab.',
-      '3) Change timeframe and chart type, then layer technical indicators based on your strategy.',
-      '4) Open fullscreen for drawing trendlines, marker placement, and note annotations.',
-      '5) Run Regime, Microstructure, and Anomaly modules to get context-aware model outputs.',
-    ],
-  },
-  {
-    title: 'Model Layer',
-    points: [
-      'Regime model combines HMM latent-state inference, Hurst exponent persistence, ADX trend strength, and volatility percentile voting.',
-      'Microstructure model estimates congestion score, latency regime, and directional congestion trend from intraday behavior.',
-      'Anomaly model uses an ensemble (Isolation Forest, rolling z-score, CUSUM) and returns severity, composite score, top drivers, and candle markers.',
-      'Outputs are explainable by design so traders can inspect confidence and component breakdowns before acting.',
-    ],
-  },
-  {
-    title: 'Indicators And Chart System',
-    points: [
-      'Chart types: Candlestick, Line, Area, OHLC Bar, Baseline.',
-      'Indicators: SMA, EMA, WMA, Bollinger Bands, VWAP, PSAR, Keltner, Ichimoku, RSI, MACD, Stochastic, Williams %R, CCI, ADX, ATR, ROC, TRIX, MFI, OBV, ADL, Force Index, Awesome Oscillator.',
-      'Volume and oscillator panes are resizable and persist visual proportions while data updates.',
-      'Anomaly overlays are rendered directly on chart context for immediate non-hover visibility.',
-    ],
-  },
-  {
-    title: 'Architecture And Build Stack',
-    points: [
-      'Frontend: Next.js App Router, React, TypeScript, CSS Modules.',
-      'Charts: lightweight-charts with custom controls, pane overlays, and annotation state handling.',
-      'Backend routes: Next.js API handlers for auth, watchlist, symbols, quotes, and signal proxy endpoints.',
-      'Database/Auth: Neon Postgres + secure signed-cookie sessions.',
-      'Intelligence service: Python FastAPI with pandas, numpy, scikit-learn, hmmlearn, scipy.',
-      'Data sources: Yahoo Finance quote/history endpoints normalized into a shared payload for chart and stats.',
-    ],
-  },
-]
+const INFO_TABS = ['Overview', 'How To Use', 'Models', 'Indicators', 'Stack'] as const
+type InfoTab = typeof INFO_TABS[number]
+
+// ── Sparkline ─────────────────────────────────────────────────────────────────
 
 function Sparkline({ up }: { up: boolean }) {
   const pts = Array.from({ length: 12 }, (_, i) => {
@@ -101,13 +110,247 @@ function Sparkline({ up }: { up: boolean }) {
     return `${i * 18},${40 - (up ? noise : -noise)}`
   }).join(' ')
   const color = up ? '#00ff80' : '#ff4d6a'
-
   return (
     <svg width="100" height="40" viewBox="0 0 198 60" fill="none" style={{ display: 'block' }}>
       <polyline points={pts} stroke={color} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
+
+// ── Info Panel ────────────────────────────────────────────────────────────────
+
+function InfoPanel({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<InfoTab>('Overview')
+  const [indicatorFilter, setIndicatorFilter] = useState<string>('All')
+  const [expandedModel, setExpandedModel] = useState<string | null>('regime')
+  const [hoveredLayer, setHoveredLayer] = useState<number | null>(null)
+
+  const cats = ['All', 'Trend', 'Momentum', 'Volatility', 'Volume']
+  const filteredIndicators = indicatorFilter === 'All'
+    ? INDICATORS
+    : INDICATORS.filter(i => i.cat === indicatorFilter)
+
+  return (
+    <div className={styles.infoOverlay}>
+      <div className={styles.infoBackdrop} onClick={onClose} />
+      <div className={styles.infoPage}>
+
+        {/* ── Header ── */}
+        <header className={styles.infoPageHeader}>
+          <div className={styles.infoPageHeaderLeft}>
+            <span className={styles.infoPageKicker}>IN$JAM — Platform Documentation</span>
+            <h2 className={styles.infoPageTitle}>I NEVER $ JOKE ABOUT MONEY</h2>
+          </div>
+          <button className={styles.infoPageClose} onClick={onClose} aria-label="Close">
+            ✕ Close
+          </button>
+        </header>
+
+        {/* ── Tab bar ── */}
+        <nav className={styles.infoTabBar}>
+          {INFO_TABS.map(tab => (
+            <button
+              key={tab}
+              className={`${styles.infoTab} ${activeTab === tab ? styles.infoTabActive : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+
+        {/* ── Tab content ── */}
+        <div className={styles.infoContent}>
+
+          {/* OVERVIEW */}
+          {activeTab === 'Overview' && (
+            <div className={styles.infoSection}>
+              <div className={styles.overviewGrid}>
+                <div className={styles.overviewHero}>
+                  <p className={styles.overviewLead}>
+                    IN$JAM is a single-screen market analysis terminal. Watchlists, live quotes, charting, technical indicators, and three machine-learning signal models — all in one flow, zero context switching.
+                  </p>
+                  <p className={styles.overviewBody}>
+                    Built for traders who are tired of juggling five tabs. Every design decision prioritises speed of decision: you should be able to go from symbol discovery to chart analysis to model interpretation without ever leaving the screen.
+                  </p>
+                </div>
+                <div className={styles.overviewStats}>
+                  {[
+                    { n: '21+',    l: 'Technical indicators' },
+                    { n: '3',      l: 'ML signal models'     },
+                    { n: '18k+',   l: 'Symbols tracked'      },
+                    { n: '2.4ms',  l: 'Avg data latency'     },
+                  ].map(s => (
+                    <div key={s.l} className={styles.overviewStat}>
+                      <span className={styles.overviewStatN}>{s.n}</span>
+                      <span className={styles.overviewStatL}>{s.l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.overviewPillars}>
+                {[
+                  { icon: '◈', title: 'Live Stream',    body: 'Real-time quotes filtered to your watchlist. Zero noise, pure signal.' },
+                  { icon: '⊞', title: 'Watchlists',     body: 'Build symbol lists with manual entry, quick remove, and instant switching.' },
+                  { icon: '⌇', title: 'Chart Workspace',body: 'Candles, indicators, overlays, and annotation tools built for active analysis.' },
+                  { icon: '⬡', title: 'Signal Models',  body: 'Regime, microstructure, and anomaly engines with interpretable outputs.' },
+                ].map(p => (
+                  <div key={p.title} className={styles.pillarCard}>
+                    <span className={styles.pillarIcon}>{p.icon}</span>
+                    <span className={styles.pillarTitle}>{p.title}</span>
+                    <span className={styles.pillarBody}>{p.body}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* HOW TO USE */}
+          {activeTab === 'How To Use' && (
+            <div className={styles.infoSection}>
+              <div className={styles.stepsGrid}>
+                {[
+                  { n: '01', title: 'Build your watchlist',   body: 'Add symbols from the top-32 dropdown or type any ticker manually. Your list persists across sessions.' },
+                  { n: '02', title: 'Select a symbol',         body: 'Click any symbol in the watchlist panel. Stats, chart, and signal card all update to that symbol instantly.' },
+                  { n: '03', title: 'Configure your chart',    body: 'Change timeframe and chart type from the toolbar. Layer any combination of the 21+ technical indicators.' },
+                  { n: '04', title: 'Annotate in fullscreen',  body: 'Open fullscreen mode for trendlines, marker placement, and note annotations. Everything saves to state.' },
+                  { n: '05', title: 'Run signal models',       body: 'Open the signal card for the selected symbol. Run Regime, Microstructure, and Anomaly modules independently.' },
+                  { n: '06', title: 'Read the outputs',        body: 'Each model returns a labelled regime/severity, confidence score, engine breakdown, and the drivers behind the call.' },
+                ].map((step, i) => (
+                  <div key={step.n} className={styles.stepCard} style={{ animationDelay: `${i * 60}ms` }}>
+                    <span className={styles.stepNum}>{step.n}</span>
+                    <div>
+                      <div className={styles.stepTitle}>{step.title}</div>
+                      <div className={styles.stepBody}>{step.body}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MODELS */}
+          {activeTab === 'Models' && (
+            <div className={styles.infoSection}>
+              <p className={styles.modelsLead}>
+                Three independent ML engines. Each can be run on-demand for the selected symbol. Outputs are designed to be interpretable — you see the confidence, the component votes, and which features drove the call.
+              </p>
+              <div className={styles.modelsList}>
+                {MODELS.map(model => (
+                  <div
+                    key={model.id}
+                    className={`${styles.modelCard} ${expandedModel === model.id ? styles.modelCardOpen : ''}`}
+                  >
+                    <button
+                      className={styles.modelCardHead}
+                      onClick={() => setExpandedModel(expandedModel === model.id ? null : model.id)}
+                    >
+                      <div className={styles.modelCardHeadLeft}>
+                        <span className={styles.modelName}>{model.name}</span>
+                        <span className={styles.modelBadge}>{model.badge}</span>
+                      </div>
+                      <div className={styles.modelCardHeadRight}>
+                        <span className={styles.modelTagline}>{model.tagline}</span>
+                        <span className={styles.modelChevron}>{expandedModel === model.id ? '−' : '+'}</span>
+                      </div>
+                    </button>
+
+                    {expandedModel === model.id && (
+                      <div className={styles.modelCardBody}>
+                        <div className={styles.modelEngines}>
+                          {model.engines.map(e => (
+                            <div key={e.name} className={styles.engineRow}>
+                              <span className={styles.engineDot} />
+                              <div>
+                                <span className={styles.engineName}>{e.name}</span>
+                                <span className={styles.engineDesc}>{e.desc}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className={styles.modelOutputs}>
+                          <span className={styles.modelOutputsLabel}>Possible outputs</span>
+                          <div className={styles.modelOutputPills}>
+                            {model.outputs.map(o => (
+                              <span key={o} className={styles.outputPill}>{o}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* INDICATORS */}
+          {activeTab === 'Indicators' && (
+            <div className={styles.infoSection}>
+              <div className={styles.indicatorHeader}>
+                <p className={styles.indicatorLead}>21 indicators across trend, momentum, volatility, and volume. All render in resizable panes that persist proportions during live data updates.</p>
+                <div className={styles.filterRow}>
+                  {cats.map(c => (
+                    <button
+                      key={c}
+                      className={`${styles.filterBtn} ${indicatorFilter === c ? styles.filterBtnActive : ''}`}
+                      onClick={() => setIndicatorFilter(c)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.indicatorGrid}>
+                {filteredIndicators.map(ind => (
+                  <div key={ind.name} className={styles.indicatorChip}>
+                    <span className={styles.indicatorName}>{ind.name}</span>
+                    <span className={`${styles.indicatorCat} ${styles[`cat${ind.cat}`]}`}>{ind.cat}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.chartTypeRow}>
+                <span className={styles.chartTypeLabel}>Chart types</span>
+                {['Candlestick', 'Line', 'Area', 'OHLC Bar', 'Baseline'].map(t => (
+                  <span key={t} className={styles.chartTypeChip}>{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STACK */}
+          {activeTab === 'Stack' && (
+            <div className={styles.infoSection}>
+              <p className={styles.stackLead}>Six layers from browser to data source. Hover any layer to see what it does.</p>
+              <div className={styles.stackDiagram}>
+                {STACK_LAYERS.map((layer, i) => (
+                  <div
+                    key={layer.label}
+                    className={`${styles.stackLayer} ${hoveredLayer === i ? styles.stackLayerHovered : ''}`}
+                    onMouseEnter={() => setHoveredLayer(i)}
+                    onMouseLeave={() => setHoveredLayer(null)}
+                    style={{ '--layer-color': layer.color } as React.CSSProperties}
+                  >
+                    <div className={styles.stackLayerLeft}>
+                      <span className={styles.stackLayerIndex}>{String(i + 1).padStart(2, '0')}</span>
+                      <span className={styles.stackLayerLabel}>{layer.label}</span>
+                    </div>
+                    <span className={styles.stackLayerTech}>{layer.tech}</span>
+                    <div className={styles.stackLayerBar} style={{ width: `${100 - i * 10}%`, background: layer.color }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const router = useRouter()
@@ -131,18 +374,13 @@ export default function Home() {
         const res = await fetch('/api/auth/session')
         if (!res.ok) return
         const data = await res.json()
-        if (!cancelled && data?.user) {
-          router.replace('/dashboard')
-          return
-        }
+        if (!cancelled && data?.user) { router.replace('/dashboard'); return }
       } finally {
         if (!cancelled) setSessionChecking(false)
       }
     }
     init()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [router])
 
   useEffect(() => {
@@ -150,16 +388,11 @@ export default function Home() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-
     let animId: number
     let t = 0
-    const resize = () => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    }
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight }
     resize()
     window.addEventListener('resize', resize)
-
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       const isDark = theme === 'dark'
@@ -168,44 +401,24 @@ export default function Home() {
       ctx.strokeStyle = lineColor
       ctx.lineWidth = 1
       const gs = 48
-      for (let x = 0; x < canvas.width; x += gs) {
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, canvas.height)
-        ctx.stroke()
-      }
-      for (let y = 0; y < canvas.height; y += gs) {
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(canvas.width, y)
-        ctx.stroke()
-      }
-
+      for (let x = 0; x < canvas.width; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke() }
+      for (let y = 0; y < canvas.height; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke() }
       ctx.strokeStyle = glowColor
       ctx.lineWidth = 2.5
       ctx.shadowBlur = 12
       ctx.shadowColor = glowColor
       ctx.beginPath()
       for (let x = 0; x <= canvas.width; x += 2) {
-        const y =
-          canvas.height * 0.55 +
-          Math.sin(x * 0.012 + t) * 40 +
-          Math.sin(x * 0.03 + t * 1.4) * 18 +
-          Math.cos(x * 0.007 + t * 0.7) * 28
-        if (x === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+        const y = canvas.height * 0.55 + Math.sin(x * 0.012 + t) * 40 + Math.sin(x * 0.03 + t * 1.4) * 18 + Math.cos(x * 0.007 + t * 0.7) * 28
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
       }
       ctx.stroke()
       ctx.shadowBlur = 0
       t += 0.008
       animId = requestAnimationFrame(draw)
     }
-
     draw()
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
-    }
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize) }
   }, [theme])
 
   async function handleAuthSubmit(e: FormEvent) {
@@ -221,8 +434,7 @@ export default function Home() {
       })
       const data = await res.json()
       if (!res.ok) {
-        const isWrongLogin = authMode === 'login' && res.status === 401
-        if (isWrongLogin) {
+        if (authMode === 'login' && res.status === 401) {
           setHorrorMode(true)
           setAuthError('No password, we opps.')
         } else {
@@ -255,6 +467,7 @@ export default function Home() {
     <div className={rootClass}>
       <canvas ref={canvasRef} className={styles.bgCanvas} />
 
+      {/* NAV */}
       <nav className={styles.nav}>
         <div className={styles.navLogo}>
           <span className={styles.navLogoMark}>▲</span>
@@ -262,15 +475,14 @@ export default function Home() {
           <span className={styles.navLogoBadge}>I NEVER $ JOKE ABOUT MONEY</span>
         </div>
         <div className={styles.navRight}>
-          <button className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label="Open project info">
-            INFO
-          </button>
-          <button className={styles.themeToggle} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} aria-label="Toggle theme">
+          <button className={styles.infoBtn} onClick={() => setInfoOpen(true)}>INFO</button>
+          <button className={styles.themeToggle} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
             {theme === 'dark' ? '◑' : '◐'}
           </button>
         </div>
       </nav>
 
+      {/* TICKER */}
       <div className={styles.tickerWrap}>
         <div className={styles.tickerTrack}>
           {[...TICKERS, ...TICKERS].map((t, i) => (
@@ -283,22 +495,33 @@ export default function Home() {
         </div>
       </div>
 
+      {/* HERO */}
       <main className={styles.hero}>
         <div className={styles.heroLeft}>
           <div className={styles.heroEyebrow}>
             <span className={styles.eyebrowDot} />
-            LIVE MARKETS - REAL-TIME DATA
+            LIVE MARKETS — REAL-TIME DATA
           </div>
+
           <h1 className={styles.heroHeadline}>
-            Trade with
-            <br />
-            <span className={styles.heroAccent}>IN$JAM</span>
-            <br />
+            Trade with<br />
+            <span className={styles.heroAccent}>IN$JAM</span><br />
             precision.
           </h1>
+
           <p className={styles.heroCopy}>
             Stream only your symbols. Annotate every chart. Build the workspace serious traders actually need.
           </p>
+
+          {/* ── Hero CTA info button ── */}
+          <button className={styles.heroInfoCta} onClick={() => setInfoOpen(true)}>
+            <span className={styles.heroInfoCtaIcon}>⬡</span>
+            <span className={styles.heroInfoCtaText}>
+              <span className={styles.heroInfoCtaTitle}>Explore the platform</span>
+              <span className={styles.heroInfoCtaSub}>Models · Indicators · Architecture · How it works</span>
+            </span>
+            <span className={styles.heroInfoCtaArrow}>→</span>
+          </button>
 
           <div className={styles.statsRow}>
             <div className={styles.statItem}>
@@ -318,7 +541,7 @@ export default function Home() {
           </div>
 
           <div className={styles.chartCards}>
-            {TICKERS.slice(0, 3).map((t) => (
+            {TICKERS.slice(0, 3).map(t => (
               <div key={t.sym} className={styles.chartCard}>
                 <div className={styles.chartCardTop}>
                   <span className={styles.chartCardSym}>{t.sym}</span>
@@ -331,6 +554,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* AUTH CARD */}
         <div className={styles.authWrap}>
           <div className={styles.authGlow} />
           <form className={styles.authCard} onSubmit={handleAuthSubmit}>
@@ -339,61 +563,35 @@ export default function Home() {
               <span className={styles.authDotYellow} />
               <span className={styles.authDotGreen} />
             </div>
-
             <div className={styles.authTitle}>{authMode === 'login' ? 'Welcome back' : 'Create account'}</div>
-            <div className={styles.authSub}>
-              {authMode === 'login' ? 'Sign in to your IN$JAM workspace.' : 'Join thousands of traders on IN$JAM.'}
-            </div>
-
+            <div className={styles.authSub}>{authMode === 'login' ? 'Sign in to your IN$JAM workspace.' : 'Join thousands of traders on IN$JAM.'}</div>
             <div className={styles.authField}>
               <label className={styles.authLabel}>EMAIL</label>
-              <input
-                className={styles.authInput}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                type="email"
-                autoComplete="email"
-                required
-              />
+              <input className={styles.authInput} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" autoComplete="email" required />
             </div>
-
             <div className={styles.authField}>
               <label className={styles.authLabel}>PASSWORD</label>
-              <input
-                className={styles.authInput}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 8 characters"
-                type="password"
-                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-                required
-              />
+              <input className={styles.authInput} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} required />
             </div>
-
             {authError && <div className={styles.authError}>{authError}</div>}
-
             <button className={styles.authPrimary} type="submit" disabled={authBusy}>
               {authBusy ? 'Please wait...' : authMode === 'signup' ? '-> Create Account' : '-> Enter IN$JAM'}
             </button>
-
-            <button
-              className={styles.authSwitch}
-              type="button"
-              onClick={() => {
-                setAuthMode((p) => (p === 'login' ? 'signup' : 'login'))
-                setAuthError('')
-                setHorrorMode(false)
-              }}
-            >
+            <button className={styles.authSwitch} type="button" onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError(''); setHorrorMode(false) }}>
               {authMode === 'login' ? 'New here? Sign up free' : 'Have an account? Login'}
             </button>
           </form>
         </div>
       </main>
 
+      {/* FEATURES */}
       <section className={styles.features}>
-        {FEATURES.map((f) => (
+        {[
+          { icon: '*',   title: 'Live Market Stream', desc: 'Real-time quotes filtered to your active watchlist. Zero noise, pure signal.' },
+          { icon: '[]',  title: 'Smart Watchlists',   desc: 'Build and manage symbol lists with manual symbol add, quick remove, and fast switching.' },
+          { icon: '/\\', title: 'Chart Workspace',    desc: 'Candles, indicators, panes, overlays, and annotation tools built for active analysis.' },
+          { icon: '+',   title: 'Signal Models',      desc: 'Regime, microstructure, and anomaly engines with interpretable outputs.' },
+        ].map(f => (
           <div key={f.title} className={styles.featureCard}>
             <span className={styles.featureIcon}>{f.icon}</span>
             <div className={styles.featureTitle}>{f.title}</div>
@@ -408,37 +606,10 @@ export default function Home() {
         <span>Markets data is 15 min delayed for display purposes</span>
       </footer>
 
-      {infoOpen && (
-        <div className={styles.infoOverlay}>
-          <div className={styles.infoBackdrop} onClick={() => setInfoOpen(false)} />
-          <section className={styles.infoPanel}>
-            <div className={styles.infoHeader}>
-              <div>
-                <div className={styles.infoKicker}>IN$JAM Project Brief</div>
-                <h2 className={styles.infoTitle}>I NEVER $ JOKE ABOUT MONEY</h2>
-              </div>
-              <button className={styles.infoClose} onClick={() => setInfoOpen(false)}>
-                CLOSE
-              </button>
-            </div>
-            <div className={styles.infoGrid}>
-              {INFO_SECTIONS.map((section) => (
-                <article key={section.title} className={styles.infoCard}>
-                  <h3 className={styles.infoCardTitle}>{section.title}</h3>
-                  <div className={styles.infoList}>
-                    {section.points.map((point) => (
-                      <p key={point} className={styles.infoPoint}>
-                        {point}
-                      </p>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
+      {/* INFO PANEL */}
+      {infoOpen && <InfoPanel onClose={() => setInfoOpen(false)} />}
 
+      {/* HORROR MODE */}
       {horrorMode && (
         <div className={styles.horrorOverlay}>
           <div className={styles.horrorBackdrop} />
@@ -448,63 +619,27 @@ export default function Home() {
               <h1 className={styles.horrorHeadline}>NEVER DO THAT AGAIN</h1>
               <p className={styles.horrorLine}>Will Spin On Your Block,</p>
               <p className={styles.horrorLine}>No PASSWORD, so we OPPS.</p>
-              <button type="button" className={styles.horrorClose} onClick={() => setHorrorMode(false)}>
-                Back to normal screen
-              </button>
+              <button type="button" className={styles.horrorClose} onClick={() => setHorrorMode(false)}>Back to normal screen</button>
             </div>
-
             <form className={`${styles.authCard} ${styles.horrorAuthCard}`} onSubmit={handleAuthSubmit}>
               <div className={styles.authTopBar}>
-                <span className={styles.authDotRed} />
-                <span className={styles.authDotYellow} />
-                <span className={styles.authDotGreen} />
+                <span className={styles.authDotRed} /><span className={styles.authDotYellow} /><span className={styles.authDotGreen} />
               </div>
-
               <div className={styles.authTitle}>{authMode === 'login' ? 'Try that again.' : 'Create account'}</div>
-              <div className={styles.authSub}>
-                {authMode === 'login' ? 'Enter correct credentials to continue.' : 'Sign up and enter IN$JAM.'}
-              </div>
-
+              <div className={styles.authSub}>{authMode === 'login' ? 'Enter correct credentials to continue.' : 'Sign up and enter IN$JAM.'}</div>
               <div className={styles.authField}>
                 <label className={styles.authLabel}>EMAIL</label>
-                <input
-                  className={styles.authInput}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  autoComplete="email"
-                  required
-                />
+                <input className={styles.authInput} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" type="email" autoComplete="email" required />
               </div>
-
               <div className={styles.authField}>
                 <label className={styles.authLabel}>PASSWORD</label>
-                <input
-                  className={styles.authInput}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={authMode === 'signup' ? 'Min. 8 characters' : 'Enter password'}
-                  type="password"
-                  autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-                  required
-                />
+                <input className={styles.authInput} value={password} onChange={e => setPassword(e.target.value)} placeholder={authMode === 'signup' ? 'Min. 8 characters' : 'Enter password'} type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} required />
               </div>
-
               {authError && <div className={styles.authError}>{authError}</div>}
-
               <button className={styles.authPrimary} type="submit" disabled={authBusy}>
                 {authBusy ? 'Please wait...' : authMode === 'signup' ? '-> Create Account' : '-> Enter IN$JAM'}
               </button>
-
-              <button
-                className={styles.authSwitch}
-                type="button"
-                onClick={() => {
-                  setAuthMode((p) => (p === 'login' ? 'signup' : 'login'))
-                  setAuthError('')
-                }}
-              >
+              <button className={styles.authSwitch} type="button" onClick={() => { setAuthMode(p => p === 'login' ? 'signup' : 'login'); setAuthError('') }}>
                 {authMode === 'login' ? 'New here? Sign up free' : 'Have an account? Login'}
               </button>
             </form>
