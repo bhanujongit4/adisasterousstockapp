@@ -152,7 +152,7 @@ export default function StockSignalCard({ ticker, onAnomalyOverlayChange }: Prop
     <section className={styles.card}>
       <div className={styles.header}>
         <div>
-          <div className={styles.title}>STOCK INTELLIGENCE LAB</div>
+          <div className={styles.title}>STOCK INTELLIGENCE LAB : Response might take time due to render spinback</div>
           <div className={styles.subtitle}>{ticker} · manual generation only</div>
         </div>
         {generatedAt && <div className={styles.generated}>LAST RUN {generatedAt}</div>}
